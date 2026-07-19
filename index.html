@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>にっこり対戦表メーカー</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React 18 & ReactDOM 18 and Babel Standalone for browser-side JSX compiling -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- html2canvas: HTML elements to image converter -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700&family=Nunito:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Line Seed JP', 'Nunito', 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbars for clean UI */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <div id="root" class="flex-grow flex flex-col"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const SmileIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1 text-emerald-500">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                <line x1="9" x2="9.01" y1="9" y2="9" />
+                <line x1="15" x2="15.01" y1="9" y2="9" />
+            </svg>
+        );
+
+        const TrashIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <line x1="10" x2="10" y1="11" y2="17" />
+                <line x1="14" x2="14" y1="11" y2="17" />
+            </svg>
+        );
+
+        const SettingsIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                <circle cx="12" cy="12" r="3" />
+            </svg>
+        );
+
+        const PlusIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                <line x1="12" x2="12" y1="5" y2="19" />
+                <line x1="5" x2="19" y1="12" y2="12" />
+            </svg>
+        );
+
+        const HomeIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+        );
+
+        const CalendarIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1 text-emerald-100">
+                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                <line x1="16" x2="16" y1="2" y2="6" />
+                <line x1="8" x2="8" y1="2" y2="6" />
+                <line x1="3" x2="21" y1="10" y2="10" />
+            </svg>
+        );
+
+        const ImageIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </svg>
+        );
+
+        const ChevronLeftIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+                <polyline points="15 18 9 12 15 6" />
+            </svg>
+        );
+
+        const ChevronRightIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="inline-block ml-1">
+                <polyline points="9 18 15 12 9 6" />
+            </svg>
+        );
+
+        const DEFAULT_GROUPS = [
+            {
+                id: "group-1",
+                name: "月曜テニスサークル",
+                members: [
+                    { id: "m1", name: "佐藤", gender: "M", present: true },
+                    { id: "m2", name: "鈴木", gender: "M", present: true },
+                    { id: "m3", name: "高橋", gender: "M", present: true },
+                    { id: "m4", name: "田中", gender: "M", present: true },
+                    { id: "m5", name: "渡辺", gender: "M", present: true },
+                    { id: "m6", name: "伊藤", gender: "F", present: true },
+                    { id: "m7", name: "山本", gender: "F", present: true },
+                    { id: "m8", name: "中村", gender: "F", present: true },
+                    { id: "m9", name: "小林", gender: "F", present: true }
+                ],
+                settings: {
+                    weights: {
+                        count: 10,
+                        break: 10,
+                        consecutive: 10,
+                        pair: 10,
+                        opponent: 10,
+                        genderMix: 10
+                    }
+                }
+            }
+        ];
+
+        // Format name to support line breaks (3 chars per line, max 6 chars total)
+        const formatName = (name) => {
+            if (!name) return "";
+            if (name.length <= 3) return name;
+            return name.slice(0, 3) + "\n" + name.slice(3);
+        };
+
+        function evaluateAndCreateNextMatch(presentMembers, history, weights) {
+            if (presentMembers.length < 4) return null;
+
+            const N = presentMembers.length;
+            const configurations = [];
+
+            // Generate possible player groupings of 4 players
+            for (let i = 0; i < N; i++) {
+                for (let j = i + 1; j < N; j++) {
+                    for (let k = j + 1; k < N; k++) {
+                        for (let l = k + 1; l < N; l++) {
+                            const p1 = presentMembers[i];
+                            const p2 = presentMembers[j];
+                            const p3 = presentMembers[k];
+                            const p4 = presentMembers[l];
+
+                            // 3 possible matchups for 4 players
+                            configurations.push({ players: [p1, p2, p3, p4], t1: [p1, p2], t2: [p3, p4] });
+                            configurations.push({ players: [p1, p3], t1: [p1, p3], t2: [p2, p4] });
+                            configurations.push({ players: [p1, p4], t1: [p1, p4], t2: [p2, p3] });
+                        }
+                    }
+                }
+            }
+
+            const playCounts = {};
+            presentMembers.forEach(m => playCounts[m.id] = 0);
+            history.forEach(m => {
+                m.players.forEach(pid => {
+                    if (playCounts[pid] !== undefined) playCounts[pid]++;
+                });
+            });
+
+            const pairMatrix = {};
+            const opponentMatrix = {};
+            presentMembers.forEach(m1 => {
+                pairMatrix[m1.id] = {};
+                opponentMatrix[m1.id] = {};
+                presentMembers.forEach(m2 => {
+                    pairMatrix[m1.id][m2.id] = 0;
+                    opponentMatrix[m1.id][m2.id] = 0;
+                });
+            });
+
+            history.forEach(m => {
+                const t1 = m.t1;
+                const t2 = m.t2;
+                if (t1.length === 2 && pairMatrix[t1[0]] && pairMatrix[t1[0]][t1[1]] !== undefined) {
+                    pairMatrix[t1[0]][t1[1]]++;
+                    pairMatrix[t1[1]][t1[0]]++;
+                }
+                if (t2.length === 2 && pairMatrix[t2[0]] && pairMatrix[t2[0]][t2[1]] !== undefined) {
+                    pairMatrix[t2[0]][t2[1]]++;
+                    pairMatrix[t2[1]][t2[0]]++;
+                }
+                t1.forEach(p1 => {
+                    t2.forEach(p2 => {
+                        if (opponentMatrix[p1] && opponentMatrix[p1][p2] !== undefined) {
+                            opponentMatrix[p1][p2]++;
+                            opponentMatrix[p2][p1]++;
+                        }
+                    });
+                });
+            });
+
+            let bestConfigs = [];
+            let minPenalty = Infinity;
+
+            configurations.forEach(config => {
+                const courtIds = new Set(config.players.map(p => p.id));
+                const absentees = presentMembers.filter(m => !courtIds.has(m.id));
+
+                let penalty = 0;
+
+                // 1. Equalizing Play counts
+                const simulatedCounts = { ...playCounts };
+                config.players.forEach(p => simulatedCounts[p.id]++);
+                const countsArray = Object.values(simulatedCounts);
+                const maxPlay = Math.max(...countsArray);
+                const minPlay = Math.min(...countsArray);
+                const playGap = maxPlay - minPlay;
+                penalty += playGap * playGap * (weights.count * 150);
+
+                const courtPlaySum = config.players.reduce((sum, p) => sum + playCounts[p.id], 0) / 4;
+                const outPlaySum = absentees.reduce((sum, p) => sum + playCounts[p.id], 0) / (absentees.length || 1);
+                if (courtPlaySum > outPlaySum + 0.5) {
+                    penalty += (courtPlaySum - outPlaySum) * weights.count * 200;
+                }
+
+                // 2. Sitting out consecutive matches
+                if (history.length > 0) {
+                    const lastMatch = history[history.length - 1];
+                    const lastAbsentees = new Set(lastMatch.absentees);
+                    
+                    absentees.forEach(m => {
+                        if (lastAbsentees.has(m.id)) {
+                            penalty += weights.break * 250;
+                            if (history.length > 1) {
+                                const secondLastMatch = history[history.length - 2];
+                                if (secondLastMatch.absentees.includes(m.id)) {
+                                    penalty += weights.break * 800;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 3. Consecutive plays fatigue
+                config.players.forEach(p => {
+                    let continuousCount = 0;
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        if (history[i].players.includes(p.id)) {
+                            continuousCount++;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (continuousCount >= 2) {
+                        penalty += (continuousCount - 1) * weights.consecutive * 40;
+                    }
+                });
+
+                // 4. Balanced partnerships
+                const pair1Cost = pairMatrix[config.t1[0].id][config.t1[1].id];
+                const pair2Cost = pairMatrix[config.t2[0].id][config.t2[1].id];
+                penalty += (pair1Cost * pair1Cost) * weights.pair * 200;
+                penalty += (pair2Cost * pair2Cost) * weights.pair * 200;
+
+                // 5. Opponent rotation
+                let oppCost = 0;
+                const oppPairs = [
+                    [config.t1[0].id, config.t2[0].id],
+                    [config.t1[0].id, config.t2[1].id],
+                    [config.t1[1].id, config.t2[0].id],
+                    [config.t1[1].id, config.t2[1].id]
+                ];
+                oppPairs.forEach(([pa, pb]) => {
+                    oppCost += opponentMatrix[pa][pb];
+                });
+                penalty += (oppCost * oppCost) * weights.opponent * 40;
+
+                // 6. Gender mix balance
+                const malesOnCourt = config.players.filter(p => p.gender === "M").length;
+                const femalesOnCourt = 4 - malesOnCourt;
+
+                if (malesOnCourt === 2 && femalesOnCourt === 2) {
+                    const t1Genders = config.t1.map(p => p.gender);
+                    const isMixedDouble = t1Genders.includes("M") && t1Genders.includes("F");
+                    if (!isMixedDouble) {
+                        penalty += weights.genderMix * 50;
+                    }
+                } else if (malesOnCourt === 3 || femalesOnCourt === 3) {
+                    penalty += weights.genderMix * 120;
+                }
+
+                if (penalty < minPenalty) {
+                    minPenalty = penalty;
+                    bestConfigs = [config];
+                } else if (penalty === minPenalty) {
+                    bestConfigs.push(config);
+                }
+            });
+
+            const chosen = bestConfigs[Math.floor(Math.random() * bestConfigs.length)];
+            if (!chosen) return null;
+
+            const chosenCourtIds = new Set(chosen.players.map(p => p.id));
+            const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
+
+            return {
+                id: `match-${history.length + 1}`,
+                players: chosen.players.map(p => p.id),
+                t1: chosen.t1.map(p => p.id),
+                t2: chosen.t2.map(p => p.id),
+                absentees: chosenAbsentees.map(p => p.id)
+            };
+        }
+
+        function App() {
+            const [page, setPage] = useState('top');
+            const [groups, setGroups] = useState([]);
+            const [activeGroupId, setActiveGroupId] = useState(null);
+            
+            // Temporary editing states
+            const [groupName, setGroupName] = useState('');
+            const [members, setMembers] = useState([]);
+            const [weights, setWeights] = useState({
+                count: 10,
+                break: 10,
+                consecutive: 10,
+                pair: 10,
+                opponent: 10,
+                genderMix: 10
+            });
+            const [showSettings, setShowSettings] = useState(false);
+            const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+            // Match Table & Pagination States
+            const [matchList, setMatchList] = useState([]);
+            const [currentPage, setCurrentPage] = useState(1);
+            const matchesPerPage = 10;
+
+            const [toast, setToast] = useState({ show: false, message: "" });
+            const [capturedImage, setCapturedImage] = useState(null);
+            const [showImageModal, setShowImageModal] = useState(false);
+
+            useEffect(() => {
+                const stored = localStorage.getItem('nikkori_tennis_groups');
+                if (stored) {
+                    try {
+                        const parsed = JSON.parse(stored);
+                        setGroups(parsed);
+                    } catch (e) {
+                        setGroups(DEFAULT_GROUPS);
+                        localStorage.setItem('nikkori_tennis_groups', JSON.stringify(DEFAULT_GROUPS));
+                    }
+                } else {
+                    setGroups(DEFAULT_GROUPS);
+                    localStorage.setItem('nikkori_tennis_groups', JSON.stringify(DEFAULT_GROUPS));
+                }
+            }, []);
+
+            const triggerToast = (msg) => {
+                setToast({ show: true, message: msg });
+                setTimeout(() => setToast({ show: false, message: "" }), 2500);
+            };
+
+            const handleGoHome = () => {
+                setPage('top');
+                setActiveGroupId(null);
+                setShowSettings(false);
+                setShowDeleteConfirm(false);
+            };
+
+            const handleCreateNewGroup = () => {
+                const newId = `group-${Date.now()}`;
+                const newGroup = {
+                    id: newId,
+                    name: "",
+                    members: [],
+                    settings: {
+                        weights: {
+                            count: 10,
+                            break: 10,
+                            consecutive: 10,
+                            pair: 10,
+                            opponent: 10,
+                            genderMix: 10
+                        }
+                    }
+                };
+                
+                const updated = [...groups, newGroup];
+                setGroups(updated);
+                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updated));
+                
+                setActiveGroupId(newId);
+                setGroupName("");
+                setMembers([]);
+                setWeights({ count: 10, break: 10, consecutive: 10, pair: 10, opponent: 10, genderMix: 10 });
+                setShowSettings(false);
+                setShowDeleteConfirm(false);
+                setPage('group');
+            };
+
+            const handleSelectGroup = (gId) => {
+                const target = groups.find(g => g.id === gId);
+                if (!target) return;
+                setActiveGroupId(gId);
+                setGroupName(target.name);
+                setMembers(target.members || []);
+                setWeights(target.settings?.weights || { count: 10, break: 10, consecutive: 10, pair: 10, opponent: 10, genderMix: 10 });
+                setShowSettings(false);
+                setShowDeleteConfirm(false);
+                setPage('group');
+            };
+
+            const handleSaveGroup = () => {
+                const resolvedName = groupName.trim() || "無題のグループ";
+                const cleanMembers = members.filter(m => m.name.trim() !== "");
+
+                const updatedGroups = groups.map(g => {
+                    if (g.id === activeGroupId) {
+                        return {
+                            ...g,
+                            name: resolvedName,
+                            members: cleanMembers,
+                            settings: { weights }
+                        };
+                    }
+                    return g;
+                });
+
+                setGroups(updatedGroups);
+                setMembers(cleanMembers);
+                setGroupName(resolvedName);
+                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updatedGroups));
+                triggerToast("💾 設定を保存しました！");
+            };
+
+            const handleDeleteGroup = () => {
+                const updated = groups.filter(g => g.id !== activeGroupId);
+                setGroups(updated);
+                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updated));
+                triggerToast("🗑️ グループを削除しました");
+                handleGoHome();
+            };
+
+            const updateMemberName = (index, newName) => {
+                if (newName.length > 6) return;
+                const copy = [...members];
+                copy[index].name = newName;
+                setMembers(copy);
+            };
+
+            const toggleMemberGender = (index, gender) => {
+                const copy = [...members];
+                copy[index].gender = gender;
+                setMembers(copy);
+            };
+
+            const toggleMemberPresence = (index) => {
+                const copy = [...members];
+                copy[index].present = !copy[index].present;
+                setMembers(copy);
+            };
+
+            const deleteMember = (index) => {
+                const copy = [...members];
+                copy.splice(index, 1);
+                setMembers(copy);
+            };
+
+            const handleAddMember = (name, gender) => {
+                if (!name.trim()) return;
+                const newM = {
+                    id: `member-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                    name: name.trim().slice(0, 6),
+                    gender: gender,
+                    present: true
+                };
+                setMembers([...members, newM]);
+            };
+
+            const handleCreateMatchTable = () => {
+                const cleanMembers = members.filter(m => m.name.trim() !== "");
+                const activeAttendees = cleanMembers.filter(m => m.present);
+
+                if (activeAttendees.length < 4) {
+                    triggerToast("⚠️ 試合を行うには出席者が最低4人必要です！");
+                    return;
+                }
+
+                // Force save current configuration
+                const resolvedName = groupName.trim() || "無題のグループ";
+                const updatedGroups = groups.map(g => {
+                    if (g.id === activeGroupId) {
+                        return {
+                            ...g,
+                            name: resolvedName,
+                            members: cleanMembers,
+                            settings: { weights }
+                        };
+                    }
+                    return g;
+                });
+                setGroups(updatedGroups);
+                setMembers(cleanMembers);
+                setGroupName(resolvedName);
+                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updatedGroups));
+
+                // Generate first 10 matches
+                const generated = [];
+                for (let i = 0; i < 10; i++) {
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, generated, weights);
+                    if (nextMatch) {
+                        generated.push(nextMatch);
+                    } else {
+                        break;
+                    }
+                }
+
+                setMatchList(generated);
+                setCurrentPage(1);
+                setPage('match');
+            };
+
+            const handleAddMoreMatches = () => {
+                const cleanMembers = members.filter(m => m.name.trim() !== "");
+                const activeAttendees = cleanMembers.filter(m => m.present);
+
+                if (activeAttendees.length < 4) {
+                    triggerToast("⚠️ メンバーが足りません");
+                    return;
+                }
+
+                const currentHistory = [...matchList];
+                const nextTen = [];
+                
+                for (let i = 0; i < 10; i++) {
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, [...currentHistory, ...nextTen], weights);
+                    if (nextMatch) {
+                        nextTen.push(nextMatch);
+                    } else {
+                        break;
+                    }
+                }
+
+                if (nextTen.length === 0) {
+                    triggerToast("⚠️ 組み合わせを作れません");
+                    return;
+                }
+
+                const updatedMatches = [...currentHistory, ...nextTen];
+                setMatchList(updatedMatches);
+                
+                // Automatically slide view to the newly added page
+                const totalAddedPages = Math.ceil(updatedMatches.length / matchesPerPage);
+                setCurrentPage(totalAddedPages);
+                triggerToast("🎾 さらに10試合追加しました！");
+            };
+
+            const handleDownloadImage = () => {
+                const element = document.getElementById('match-table-capture-area');
+                if (!element) {
+                    triggerToast("⚠️ キャプチャ対象が見つかりません");
+                    return;
+                }
+
+                triggerToast("📸 画像を生成中...");
+                
+                html2canvas(element, {
+                    scale: 2.2, // Enhanced crisp ratio
+                    useCORS: true,
+                    backgroundColor: "#f1f5f9",
+                    logging: false
+                }).then((canvas) => {
+                    try {
+                        const imgData = canvas.toDataURL('image/png');
+                        setCapturedImage(imgData);
+                        setShowImageModal(true);
+                        triggerToast("✨ 画像が完成しました！");
+                    } catch (e) {
+                        console.error(e);
+                        triggerToast("⚠️ 画像の保存に失敗しました。手動でスクリーンショットをお試しください。");
+                    }
+                });
+            };
+
+            const getMemberNameWithStyle = (id) => {
+                const m = members.find(p => p.id === id);
+                if (!m) return { name: "??", isMale: true };
+                return { name: m.name, isMale: m.gender === "M" };
+            };
+
+            // Paginated Slicing
+            const totalPages = Math.ceil(matchList.length / matchesPerPage);
+            const startIndex = (currentPage - 1) * matchesPerPage;
+            const visibleMatches = matchList.slice(startIndex, startIndex + matchesPerPage);
+
+            return (
+                <div className="flex-grow flex flex-col justify-between">
+                    {/* Persistent Navigation Header */}
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+                        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center space-x-2 cursor-pointer" onClick={handleGoHome}>
+                                <SmileIcon />
+                                <span className="font-bold text-lg tracking-tight text-slate-800">
+                                    にっこり対戦表
+                                </span>
+                            </div>
+                            
+                            {page !== 'top' && (
+                                <button 
+                                    onClick={handleGoHome}
+                                    className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full flex items-center shadow-sm active:scale-95 transition-all"
+                                >
+                                    <HomeIcon /> TOPへ戻る
+                                </button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* Main Content Workspace */}
+                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-5">
+                        
+                        {/* 1. TOP DASHBOARD VIEW */}
+                        {page === 'top' && (
+                            <div className="space-y-6">
+                                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 text-white shadow-md relative overflow-hidden">
+                                    <h2 className="text-2xl font-black mb-2 flex items-center">
+                                        にっこり対戦表メーカー 😊
+                                    </h2>
+                                    <p className="text-emerald-50 text-xs leading-relaxed">
+                                        お休み回数・ペア回数を常に均等に自動計算。途中で打ち切っても不公平感が出ない魔法の対戦表アプリです。
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <h3 className="font-bold text-slate-500 text-xs uppercase tracking-wider px-1">Myグループ</h3>
+                                    <div className="space-y-2">
+                                        {groups.length === 0 ? (
+                                            <div className="text-center py-8 bg-white border border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm">
+                                                登録されたグループはありません。<br/>下のボタンから作成してみましょう！
+                                            </div>
+                                        ) : (
+                                            groups.map(g => (
+                                                <button
+                                                    key={g.id}
+                                                    onClick={() => handleSelectGroup(g.id)}
+                                                    className="w-full text-left bg-white border border-slate-100 hover:border-emerald-300 rounded-2xl p-4 shadow-sm hover:shadow transition-all flex items-center justify-between group active:scale-[0.99]"
+                                                >
+                                                    <div className="space-y-1">
+                                                        <div className="font-bold text-slate-800 group-hover:text-emerald-600 transition-colors">
+                                                            {g.name || "（名称未設定のグループ）"}
+                                                        </div>
+                                                        <div className="text-xs text-slate-400 flex items-center space-x-2">
+                                                            <span>メンバー: {g.members?.length || 0}名</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-slate-300 group-hover:text-emerald-500 transform group-hover:translate-x-1 transition-all">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                                                    </span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleCreateNewGroup}
+                                    className="w-full bg-slate-800 hover:bg-emerald-600 text-white font-bold py-4 px-6 rounded-2xl shadow transition-all active:scale-[0.98] flex items-center justify-center space-x-2"
+                                >
+                                    <PlusIcon />
+                                    <span>新規グループを作成する</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* 2. GROUP MANAGEMENT & EDIT VIEW */}
+                        {page === 'group' && (
+                            <div className="space-y-5">
+                                {/* Group Title input */}
+                                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">グループ名</label>
+                                        <input
+                                            type="text"
+                                            value={groupName}
+                                            onChange={(e) => setGroupName(e.target.value)}
+                                            placeholder="グループ名を入力"
+                                            className="w-full font-bold text-xl border-b-2 border-slate-200 focus:border-emerald-500 outline-none py-1.5 transition-colors placeholder-slate-300"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Members List card */}
+                                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-4">
+                                    <div className="pb-2 border-b border-slate-100">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-slate-800 text-base">メンバーリスト</h3>
+                                            <span className="text-xs text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full font-bold">
+                                                登録 {members.length} 名
+                                            </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 font-bold mt-1">
+                                            本日の出席者にチェックを入れてください
+                                        </p>
+                                    </div>
+
+                                    {/* Member Row Entry */}
+                                    <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                                        {members.map((m, index) => (
+                                            <div 
+                                                key={m.id} 
+                                                className={`flex items-center space-x-2 p-2 rounded-xl border transition-all ${
+                                                    m.present 
+                                                    ? 'bg-emerald-50/50 border-emerald-100' 
+                                                    : 'bg-slate-50 border-slate-100 opacity-60'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={m.present}
+                                                    onChange={() => toggleMemberPresence(index)}
+                                                    className="w-5 h-5 rounded text-emerald-500 focus:ring-emerald-400 border-slate-300 cursor-pointer"
+                                                />
+
+                                                <input
+                                                    type="text"
+                                                    value={m.name}
+                                                    onChange={(e) => updateMemberName(index, e.target.value)}
+                                                    maxLength={6}
+                                                    placeholder="名前"
+                                                    className="flex-grow bg-transparent border-b border-transparent hover:border-slate-300 focus:border-emerald-500 outline-none text-sm font-bold text-slate-700 px-1 py-0.5 transition-all"
+                                                />
+
+                                                <div className="flex space-x-1 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleMemberGender(index, 'M')}
+                                                        className={`px-2 py-1 text-xs font-bold rounded-lg transition-all ${
+                                                            m.gender === 'M'
+                                                            ? 'bg-sky-500 text-white shadow-sm'
+                                                            : 'bg-white text-slate-400 border border-slate-200'
+                                                        }`}
+                                                    >
+                                                        男
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleMemberGender(index, 'F')}
+                                                        className={`px-2 py-1 text-xs font-bold rounded-lg transition-all ${
+                                                            m.gender === 'F'
+                                                            ? 'bg-rose-500 text-white shadow-sm'
+                                                            : 'bg-white text-slate-400 border border-slate-200'
+                                                        }`}
+                                                    >
+                                                        女
+                                                    </button>
+                                                </div>
+
+                                                <button
+                                                    onClick={() => deleteMember(index)}
+                                                    className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+                                                    title="削除"
+                                                >
+                                                    <TrashIcon />
+                                                </button>
+                                            </div>
+                                        ))}
+
+                                        <EmptyRowCreator onAddMember={handleAddMember} />
+                                    </div>
+                                    <p className="text-[10px] text-slate-400 leading-tight">
+                                        ※ 名前を入力して「男」か「女」ボタンを押すと、即座に確定して新たな入力欄が現れます。（最大6文字）
+                                    </p>
+                                </div>
+
+                                {/* Custom Weights Tuning Settings Accordion */}
+                                <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowSettings(!showSettings)}
+                                        className="w-full flex items-center justify-between font-bold text-slate-700 focus:outline-none"
+                                    >
+                                        <span className="flex items-center text-sm">
+                                            <SettingsIcon className="mr-2 text-slate-500" />
+                                            詳細設定（組み合わせの重要度を設定）
+                                        </span>
+                                        <span className="text-slate-400 transform transition-transform duration-200" style={{ transform: showSettings ? 'rotate(180deg)' : 'rotate(0)' }}>
+                                            ▼
+                                        </span>
+                                    </button>
+
+                                    {showSettings && (
+                                        <div className="pt-4 space-y-4 border-t border-slate-50 mt-3">
+                                            <div className="text-[11px] text-slate-400 bg-slate-50 p-2.5 rounded-xl leading-relaxed">
+                                                組み合わせの重要度を10点満点で設定してください。優先させたい度合いの高い条件から適応スケジュールを算出します。
+                                            </div>
+                                            
+                                            <div className="space-y-3">
+                                                <WeightSlider 
+                                                    label="試合数" 
+                                                    desc="全員のトータル試合数が均等になるようにします"
+                                                    value={weights.count} 
+                                                    onChange={(val) => setWeights({...weights, count: val})} 
+                                                />
+                                                <WeightSlider 
+                                                    label="連続休憩数" 
+                                                    desc="2回以上続けて休みになる人がいないようにします"
+                                                    value={weights.break} 
+                                                    onChange={(val) => setWeights({...weights, break: val})} 
+                                                />
+                                                <WeightSlider 
+                                                    label="連続試合数" 
+                                                    desc="3試合連続出場などの疲労度・過密連戦を防ぎます"
+                                                    value={weights.consecutive} 
+                                                    onChange={(val) => setWeights({...weights, consecutive: val})} 
+                                                />
+                                                <WeightSlider 
+                                                    label="ペア均等" 
+                                                    desc="同じペア（パートナー）ばかりが連続するのを防ぎます"
+                                                    value={weights.pair} 
+                                                    onChange={(val) => setWeights({...weights, pair: val})} 
+                                                />
+                                                <WeightSlider 
+                                                    label="対戦相手均等" 
+                                                    desc="同じ対戦カードばかりが重ならないよう分散させます"
+                                                    value={weights.opponent} 
+                                                    onChange={(val) => setWeights({...weights, opponent: val})} 
+                                                />
+                                                <WeightSlider 
+                                                    label="男女分け" 
+                                                    desc="男女ダブルス（ミックス等）が綺麗に組めるように考慮します"
+                                                    value={weights.genderMix} 
+                                                    onChange={(val) => setWeights({...weights, genderMix: val})} 
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Form Action Buttons */}
+                                <div className="space-y-3 pt-2">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveGroup}
+                                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-2xl shadow-sm transition-all active:scale-[0.97]"
+                                        >
+                                            💾 保存する
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleCreateMatchTable}
+                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-2xl shadow transition-all active:scale-[0.97] flex items-center justify-center space-x-1"
+                                        >
+                                            <span>🎾 対戦表を作成する</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Safe Group Deletion Trigger Area */}
+                                    {!showDeleteConfirm ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                            className="w-full text-rose-500 hover:text-rose-700 hover:bg-rose-50/50 border border-slate-200 font-bold py-2.5 rounded-xl text-xs transition-all mt-4"
+                                        >
+                                            🗑️ このグループを削除する
+                                        </button>
+                                    ) : (
+                                        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center space-y-3 animate-in fade-in zoom-in duration-200 mt-4">
+                                            <p className="text-xs font-bold text-rose-700">本当にこのグループを削除しますか？登録メンバーなどのデータもすべて消去されます。</p>
+                                            <div className="flex justify-center space-x-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 font-bold px-4 py-1.5 rounded-xl text-xs"
+                                                >
+                                                    キャンセル
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleDeleteGroup}
+                                                    className="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs shadow-sm"
+                                                >
+                                                    はい、削除する
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 3. GENERATED COMPACT MATCH VIEW & GRAPHICS EXPORT */}
+                        {page === 'match' && (
+                            <div className="space-y-4">
+                                
+                                {/* EXPORT CAPTURE BLOCK - Includes ONLY currently active 10 matches */}
+                                <div id="match-table-capture-area" className="bg-slate-100 p-4 rounded-3xl border border-slate-200 shadow-inner space-y-3">
+                                    
+                                    {/* Capture Area Header Banner */}
+                                    <div className="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 text-white shadow-md flex items-center justify-between relative overflow-hidden">
+                                        <div className="space-y-1 relative z-10">
+                                            <h2 className="font-black text-lg leading-tight tracking-wide flex items-center">
+                                                <span className="mr-1.5">😊</span>
+                                                {groupName || "テニス"} 対戦表
+                                            </h2>
+                                            <div className="flex items-center text-[10px] text-emerald-50/90 font-semibold space-x-2">
+                                                <span className="flex items-center">
+                                                    <CalendarIcon />
+                                                    <span className="ml-1">{new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0 z-10">
+                                            <span className="text-[10px] bg-white/20 text-white font-bold py-1 px-2.5 rounded-full block text-center">
+                                                {startIndex + 1}〜{Math.min(startIndex + matchesPerPage, matchList.length)} 試合
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Dynamic Ultra-Compact Match Cards Stream */}
+                                    <div className="space-y-1.5">
+                                        {visibleMatches.map((m, index) => {
+                                            const globalIndex = startIndex + index;
+                                            const p1 = getMemberNameWithStyle(m.t1[0]);
+                                            const p2 = getMemberNameWithStyle(m.t1[1]);
+                                            const p3 = getMemberNameWithStyle(m.t2[0]);
+                                            const p4 = getMemberNameWithStyle(m.t2[1]);
+                                            const absNames = m.absentees.map(id => getMemberNameWithStyle(id));
+
+                                            return (
+                                                <div 
+                                                    key={m.id} 
+                                                    className="bg-white rounded-xl border border-slate-200/50 px-3 py-1.5 shadow-sm flex flex-col justify-center space-y-1 relative overflow-hidden"
+                                                >
+                                                    {/* Row Header - Index badge & Absentees aligned perfectly */}
+                                                    <div className="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-50 pb-0.5">
+                                                        <span className="font-extrabold tracking-wider bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-md scale-95 origin-left">
+                                                            第 {globalIndex + 1} 試合
+                                                        </span>
+                                                        {absNames.length > 0 && (
+                                                            <div className="flex items-center space-x-1 font-bold text-[10px]">
+                                                                <span className="text-slate-400">休:</span>
+                                                                <span className="text-slate-600 truncate max-w-[160px]">
+                                                                    {absNames.map(abs => abs.name).join(', ')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Row Competitors without block containers or unnecessary titles */}
+                                                    <div className="flex items-center justify-between text-xs py-0.5">
+                                                        
+                                                        {/* Team A Partners side-by-side */}
+                                                        <div className="flex items-center justify-center space-x-1.5 w-[45%]">
+                                                            <span className={`w-[48%] py-1 px-0.5 rounded-lg font-bold text-center text-[13px] md:text-sm leading-snug shadow-sm whitespace-pre-line ${
+                                                                p1.isMale ? 'bg-sky-50 text-sky-600 border border-sky-100/50' : 'bg-rose-50 text-rose-600 border border-rose-100/50'
+                                                            }`}>
+                                                                {formatName(p1.name)}
+                                                            </span>
+                                                            <span className={`w-[48%] py-1 px-0.5 rounded-lg font-bold text-center text-[13px] md:text-sm leading-snug shadow-sm whitespace-pre-line ${
+                                                                p2.isMale ? 'bg-sky-50 text-sky-600 border border-sky-100/50' : 'bg-rose-50 text-rose-600 border border-rose-100/50'
+                                                            }`}>
+                                                                {formatName(p2.name)}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Clean Plain text Separator (vs) */}
+                                                        <div className="w-[10%] text-center font-black italic text-[10px] text-slate-400 select-none">
+                                                            vs
+                                                        </div>
+
+                                                        {/* Team B Partners side-by-side */}
+                                                        <div className="flex items-center justify-center space-x-1.5 w-[45%]">
+                                                            <span className={`w-[48%] py-1 px-0.5 rounded-lg font-bold text-center text-[13px] md:text-sm leading-snug shadow-sm whitespace-pre-line ${
+                                                                p3.isMale ? 'bg-sky-50 text-sky-600 border border-sky-100/50' : 'bg-rose-50 text-rose-600 border border-rose-100/50'
+                                                            }`}>
+                                                                {formatName(p3.name)}
+                                                            </span>
+                                                            <span className={`w-[48%] py-1 px-0.5 rounded-lg font-bold text-center text-[13px] md:text-sm leading-snug shadow-sm whitespace-pre-line ${
+                                                                p4.isMale ? 'bg-sky-50 text-sky-600 border border-sky-100/50' : 'bg-rose-50 text-rose-600 border border-rose-100/50'
+                                                            }`}>
+                                                                {formatName(p4.name)}
+                                                            </span>
+                                                        </div>
+
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Muted Watermark footer inside the screenshot frame */}
+                                    <div className="text-center pt-1.5 border-t border-slate-200/40">
+                                        <p className="text-[9px] text-slate-400 font-bold tracking-wider">
+                                            😊 にっこり対戦表メーカー
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* CAPTURE OUTSIDE - Navigation Links to prevent rendering them onto LINE screenshots */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between px-2 py-1 text-xs">
+                                        <button
+                                            type="button"
+                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            className={`font-bold px-3 py-1.5 rounded-xl transition-all ${
+                                                currentPage === 1 
+                                                ? 'text-slate-300 cursor-not-allowed' 
+                                                : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95'
+                                            }`}
+                                        >
+                                            <ChevronLeftIcon /> 前の10試合
+                                        </button>
+                                        
+                                        <span className="font-extrabold text-slate-500 tracking-wider">
+                                            {currentPage} / {totalPages} ページ
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            disabled={currentPage === totalPages}
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            className={`font-bold px-3 py-1.5 rounded-xl transition-all ${
+                                                currentPage === totalPages 
+                                                ? 'text-slate-300 cursor-not-allowed' 
+                                                : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100 active:scale-95'
+                                            }`}
+                                        >
+                                            次の10試合 <ChevronRightIcon />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Capture outside Action Toolbar wrapper */}
+                                <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center space-y-3">
+                                    <button
+                                        onClick={handleDownloadImage}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-extrabold py-3.5 px-6 rounded-2xl text-sm flex items-center justify-center shadow transition-all"
+                                    >
+                                        <ImageIcon /> LINE用画像を作成（スマホ保存）
+                                    </button>
+                                </div>
+
+                                {/* Capture outside navigation flows */}
+                                <div className="grid grid-cols-2 gap-3 pt-1 pb-8">
+                                    <button
+                                        type="button"
+                                        onClick={handleGoHome}
+                                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 px-4 rounded-2xl shadow-sm transition-all active:scale-[0.97]"
+                                    >
+                                        🏠 TOP画面へ
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddMoreMatches}
+                                        className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold py-3.5 px-4 rounded-2xl shadow-sm transition-all active:scale-[0.97]"
+                                    >
+                                        ➕ 対戦表を追加 (+10)
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                    </main>
+
+                    {/* Muted Copyright Footer */}
+                    <footer className="bg-slate-50 border-t border-slate-200 py-4 mt-auto">
+                        <p className="text-center text-[10px] text-slate-400">
+                            © 2026 にっこり対戦表メーカー. All Rights Reserved.
+                        </p>
+                    </footer>
+
+                    {/* Image Export Preview Dialog Modal */}
+                    {showImageModal && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+                                <div className="text-center space-y-1">
+                                    <h3 className="font-extrabold text-lg text-slate-800">
+                                        📸 LINE共有用画像の完成！
+                                    </h3>
+                                    <p className="text-xs text-slate-500 leading-normal">
+                                        下の画像を<strong>長押し（またはタップ）</strong>してスマホに保存し、LINEでメンバーに送ってください。
+                                    </p>
+                                </div>
+
+                                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-inner max-h-[380px] overflow-y-auto">
+                                    <img 
+                                        src={capturedImage} 
+                                        alt="Generated Match Schedule" 
+                                        className="w-full h-auto block"
+                                    />
+                                </div>
+
+                                <div className="flex space-x-3">
+                                    <button
+                                        onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.download = `にっこり対戦表-${groupName || "テニス"}-${currentPage}ページ.png`;
+                                            link.href = capturedImage;
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                        }}
+                                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl text-xs shadow transition-all active:scale-95"
+                                    >
+                                        📥 保存する
+                                    </button>
+                                    <button
+                                        onClick={() => setShowImageModal(false)}
+                                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs transition-all active:scale-95"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Simple Custom App Toast Alerts */}
+                    {toast.show && (
+                        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900 text-white font-bold text-xs py-2.5 px-5 rounded-full shadow-lg flex items-center space-x-1">
+                            <span>{toast.message}</span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function EmptyRowCreator({ onAddMember }) {
+            const [name, setName] = useState("");
+            const nameInputRef = useRef(null);
+
+            const handleTriggerAdd = (gender) => {
+                const trimmed = name.trim();
+                if (!trimmed) {
+                    nameInputRef.current?.focus();
+                    return;
+                }
+                onAddMember(trimmed, gender);
+                setName(""); 
+                nameInputRef.current?.focus();
+            };
+
+            return (
+                <div className="flex items-center space-x-2 p-2 rounded-xl border border-dashed border-slate-300 bg-white shadow-inner">
+                    <div className="w-5 h-5 rounded border-2 border-dashed border-slate-300 bg-slate-50 shrink-0"></div>
+                    
+                    <input
+                        ref={nameInputRef}
+                        type="text"
+                        value={name}
+                        onChange={(e) => {
+                            if (e.target.value.length <= 6) {
+                                setName(e.target.value);
+                            }
+                        }}
+                        placeholder="新しいメンバー名"
+                        className="flex-grow bg-transparent border-b border-transparent focus:border-slate-300 outline-none text-sm font-bold text-slate-600 px-1 py-0.5"
+                    />
+
+                    <div className="flex space-x-1 shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => handleTriggerAdd('M')}
+                            className="px-2 py-1 text-xs font-bold rounded-lg border border-sky-200 text-sky-500 hover:bg-sky-50 active:scale-95 transition-all bg-sky-50/10"
+                        >
+                            男
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleTriggerAdd('F')}
+                            className="px-2 py-1 text-xs font-bold rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50 active:scale-95 transition-all bg-rose-50/10"
+                        >
+                            女
+                        </button>
+                    </div>
+                    
+                    <div className="w-8 shrink-0"></div>
+                </div>
+            );
+        }
+
+        function WeightSlider({ label, desc, value, onChange }) {
+            return (
+                <div className="space-y-1 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-slate-700">{label}</span>
+                        <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{value}点</span>
+                    </div>
+                    {desc && <p className="text-[10px] text-slate-400">{desc}</p>}
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="10" 
+                        step="1"
+                        value={value} 
+                        onChange={(e) => onChange(parseInt(e.target.value))}
+                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-500 focus:outline-none"
+                    />
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
