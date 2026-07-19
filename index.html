@@ -109,33 +109,8 @@
             </svg>
         );
 
-        const DEFAULT_GROUPS = [
-            {
-                id: "group-1",
-                name: "月曜テニスサークル",
-                members: [
-                    { id: "m1", name: "佐藤", gender: "M", present: true },
-                    { id: "m2", name: "鈴木", gender: "M", present: true },
-                    { id: "m3", name: "高橋", gender: "M", present: true },
-                    { id: "m4", name: "田中", gender: "M", present: true },
-                    { id: "m5", name: "渡辺", gender: "M", present: true },
-                    { id: "m6", name: "伊藤", gender: "F", present: true },
-                    { id: "m7", name: "山本", gender: "F", present: true },
-                    { id: "m8", name: "中村", gender: "F", present: true },
-                    { id: "m9", name: "小林", gender: "F", present: true }
-                ],
-                settings: {
-                    weights: {
-                        count: 10,
-                        break: 10,
-                        consecutive: 10,
-                        pair: 10,
-                        opponent: 10,
-                        genderMix: 10
-                    }
-                }
-            }
-        ];
+        // DEFAULT_GROUPS is now empty for production clean start
+        const DEFAULT_GROUPS = [];
 
         // Format name to support line breaks (3 chars per line, max 6 chars total)
         const formatName = (name) => {
@@ -862,7 +837,7 @@
                                             onClick={handleCreateMatchTable}
                                             className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 px-4 rounded-2xl shadow transition-all active:scale-[0.97] flex items-center justify-center space-x-1"
                                         >
-                                            <span>🎾 対戦表を作成する</span>
+                                            <span>🎾 对戦表を作成する</span>
                                         </button>
                                     </div>
 
