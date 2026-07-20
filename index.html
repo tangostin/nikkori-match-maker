@@ -481,20 +481,19 @@
                 return { name: m.name, isMale: m.gender === "M" };
             };
 
-            // 【修正】items-center に変更し、名前をマスの縦幅の半分上に移動。pb-[1px] は削除。
             const NameSpan = ({ player }) => {
-                const len = player.name.length;
-                const textSize = len >= 4 ? 'text-[11px]' : 'text-sm';
-                const bgColor = player.isMale ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700';
-                
-                return (
-                    <div className={`w-[48%] flex items-center justify-center font-bold h-[17px] rounded ${bgColor} ${textSize} overflow-hidden px-0.5`}>
-                        <span className="capture-safe-text whitespace-nowrap">{player.name}</span>
-                    </div>
-                );
-            };
+            const len = player.name.length;
+            const textSize = len >= 4 ? 'text-sm' : 'text-base';
+            const bgColor = player.isMale ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700';
+            
+            return (
+                <div className={`w-[48%] flex items-center justify-center font-bold h-8 rounded ${bgColor} ${textSize} px-0.5`}>
+                    <span className="whitespace-nowrap">{player.name}</span>
+                </div>
+            );
+        };
 
-            const d = new Date();
+        const d = new Date();
             const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
             
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
@@ -765,20 +764,19 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-1.5 flex flex-col justify-center">
-                                                    {/* 【修正】mb-[10px] にして、下の名前マスを縦幅の半分(約8px)分だけ下に下げる。文字切れを防ぐため overflow-visible に変更。 */}
-                                                    <div className="flex items-end mb-[10px] w-full overflow-visible">
-                                                        <span className="text-[10px] font-extrabold text-slate-700 w-12 shrink-0 leading-none">
-                                                            第{matchNum}試合
+                                                <div key={m.id} className="border-b border-slate-200 py-2.5 flex flex-col justify-center">
+                                                <div className="flex items-center mb-1.5 w-full">
+                                                    <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0">
+                                                        第{matchNum}試合
+                                                    </span>
+                                                    {absNames.length > 0 && (
+                                                        <span className="text-xs text-slate-500 font-bold flex-1">
+                                                            休: {absNames.map(a => a.name).join(', ')}
                                                         </span>
-                                                        {absNames.length > 0 && (
-                                                            <span className="text-[9px] text-slate-500 truncate leading-none pl-1">
-                                                                休: {absNames.map(a => a.name).join(', ')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <div className="flex items-center justify-between">
+                                                    )}
+                                                </div>
+                                            
+                                                <div className="flex items-center justify-between">
                                                         <div className="flex items-center justify-center space-x-1 w-[46%]">
                                                             <NameSpan player={p1} />
                                                             <NameSpan player={p2} />
