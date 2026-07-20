@@ -481,17 +481,14 @@
                 return { name: m.name, isMale: m.gender === "M" };
             };
 
-            // 【修正】ユーザー様のご指摘通り、マスの縦幅を60%にカットし、
-            // 下位置を固定して隠れていた文字を見えるように調整しました。
+            // 【修正】items-center に変更し、名前をマスの縦幅の半分上に移動。pb-[1px] は削除。
             const NameSpan = ({ player }) => {
                 const len = player.name.length;
                 const textSize = len >= 4 ? 'text-[11px]' : 'text-sm';
                 const bgColor = player.isMale ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700';
                 
-                // h-[28px] から h-[17px] (約60%) に縮小。
-                // items-center (中央揃え) から items-end (下揃え) に変更し、pb-[1px] で文字位置を調整。
                 return (
-                    <div className={`w-[48%] flex items-end justify-center font-bold h-[17px] rounded ${bgColor} ${textSize} overflow-hidden px-0.5 pb-[1px]`}>
+                    <div className={`w-[48%] flex items-center justify-center font-bold h-[17px] rounded ${bgColor} ${textSize} overflow-hidden px-0.5`}>
                         <span className="capture-safe-text whitespace-nowrap">{player.name}</span>
                     </div>
                 );
@@ -744,6 +741,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 
@@ -767,13 +765,14 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-1 flex flex-col justify-center">
-                                                    <div className="flex items-end mb-0.5 w-full overflow-hidden">
-                                                        <span className="text-[10px] font-extrabold text-slate-700 w-12 shrink-0 leading-none pb-[1px]">
+                                                <div key={m.id} className="border-b border-slate-200 py-1.5 flex flex-col justify-center">
+                                                    {/* 【修正】mb-[10px] にして、下の名前マスを縦幅の半分(約8px)分だけ下に下げる。文字切れを防ぐため overflow-visible に変更。 */}
+                                                    <div className="flex items-end mb-[10px] w-full overflow-visible">
+                                                        <span className="text-[10px] font-extrabold text-slate-700 w-12 shrink-0 leading-none">
                                                             第{matchNum}試合
                                                         </span>
                                                         {absNames.length > 0 && (
-                                                            <span className="text-[9px] text-slate-500 truncate leading-none pb-[1px]">
+                                                            <span className="text-[9px] text-slate-500 truncate leading-none pl-1">
                                                                 休: {absNames.map(a => a.name).join(', ')}
                                                             </span>
                                                         )}
@@ -842,6 +841,7 @@
                         )}
                     </main>
 
+                    {}
                     {showImageModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
