@@ -18,9 +18,7 @@
         }
         /* html2canvas render fix for text cropping */
         .capture-safe-text {
-            line-height: 1.4 !important;
-            padding-bottom: 2px !important;
-            padding-top: 2px !important;
+            line-height: 1 !important;
         }
     </style>
 </head>
@@ -69,9 +67,7 @@
 
         const DEFAULT_GROUPS = [];
 
-        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'gender'];
-        
-        const CRITERIA_MAP = {
+        const PRIORITY_LABELS = {
             count: '試合数均等',
             break: '連続休憩回避',
             consecutive: '連続試合回避',
@@ -80,161 +76,101 @@
             gender: '男女均等'
         };
 
-        function getPreState(presentMembers, history) {
-            const playCounts = {};
-            const consecutivePlay = {};
-            const consecutiveRest = {};
+        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'gender'];
 
-            presentMembers.forEach(m => {
-                playCounts[m.id] = 0;
-                consecutivePlay[m.id] = 0;
-                consecutiveRest[m.id] = 0;
-            });
-
-            // 1. 累積試合数
-            history.forEach(m => {
-                m.players.forEach(pid => {
-                    if (playCounts[pid] !== undefined) {
-                        playCounts[pid]++;
-                    }
-                });
-            });
-
-            // 2. 連続試合数、連続休憩数（過去から後ろ向きに走査して計算）
-            presentMembers.forEach(m => {
-                let isPlayBreak = false;
-                let isRestBreak = false;
-                for (let i = history.length - 1; i >= 0; i--) {
-                    const h = history[i];
-                    const played = h.players.includes(m.id);
-                    if (played) {
-                        isRestBreak = true;
-                        if (!isPlayBreak) {
-                            consecutivePlay[m.id]++;
-                        }
-                    } else {
-                        isPlayBreak = true;
-                        if (!isRestBreak) {
-                            consecutiveRest[m.id]++;
-                        }
-                    }
-                    if (isPlayBreak && isRestBreak) break;
+        const getStats = (playerId, history) => {
+            let matchCount = 0, consecutiveRest = 0, consecutivePlay = 0;
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (history[i].players.includes(playerId)) {
+                    matchCount++;
+                    if (consecutiveRest === 0) consecutivePlay++;
+                } else {
+                    if (consecutivePlay === 0) consecutiveRest++;
                 }
-            });
+            }
+            return { matchCount, consecutiveRest, consecutivePlay };
+        };
 
-            // 3. 過去の同ペア回数を数えるクロージャ
-            const pairHistoryCount = (p1Id, p2Id) => {
-                let count = 0;
-                history.forEach(m => {
-                    const inT1 = m.t1.includes(p1Id) && m.t1.includes(p2Id);
-                    const inT2 = m.t2.includes(p1Id) && m.t2.includes(p2Id);
-                    if (inT1 || inT2) count++;
-                });
-                return count;
-            };
-
-            // 4. 過去の対戦回数を数えるクロージャ
-            const opponentHistoryCount = (p1Id, p2Id) => {
-                let count = 0;
-                history.forEach(m => {
-                    const t1HasP1 = m.t1.includes(p1Id);
-                    const t1HasP2 = m.t1.includes(p2Id);
-                    const t2HasP1 = m.t2.includes(p1Id);
-                    const t2HasP2 = m.t2.includes(p2Id);
-                    if ((t1HasP1 && t2HasP2) || (t2HasP1 && t1HasP2)) count++;
-                });
-                return count;
-            };
-
-            return { playCounts, consecutivePlay, consecutiveRest, pairHistoryCount, opponentHistoryCount };
-        }
-
-        function calculateScore(config, criterion, presentMembers, history, genderMode, preState) {
-            const { playCounts, consecutivePlay, consecutiveRest, pairHistoryCount, opponentHistoryCount } = preState;
+        const calculatePenalty = (config, criterion, history, genderMode, presentMembers) => {
             const courtIds = new Set(config.players.map(p => p.id));
-
+            
             if (criterion === 'count') {
-                // 試合数バランス (指数評価 2^試合数)
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const isCourt = courtIds.has(m.id);
-                    const nextPlayCount = isCourt ? playCounts[m.id] + 1 : playCounts[m.id];
-                    sum += Math.pow(2, nextPlayCount);
+                    const stats = getStats(m.id, history);
+                    const newCount = stats.matchCount + (courtIds.has(m.id) ? 1 : 0);
+                    // 2の累乗ではなく、計算の安定性を考慮して単純な二乗にする (指数爆発を防ぐため)
+                    // ただし順序は維持される。
+                    sum += Math.pow(newCount, 2);
                 });
                 return sum;
             }
-
             if (criterion === 'break') {
-                // 連続休憩の防止 (指数評価 2^連続休憩数)
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const isCourt = courtIds.has(m.id);
-                    const nextConsecutiveRest = isCourt ? 0 : consecutiveRest[m.id] + 1;
-                    sum += Math.pow(2, nextConsecutiveRest);
+                    const stats = getStats(m.id, history);
+                    const newBreak = courtIds.has(m.id) ? 0 : stats.consecutiveRest + 1;
+                    sum += Math.pow(newBreak, 2);
                 });
                 return sum;
             }
-
             if (criterion === 'consecutive') {
-                // 連続試合の防止 (指数評価 2^連続試合数)
                 let sum = 0;
                 presentMembers.forEach(m => {
-                    const isCourt = courtIds.has(m.id);
-                    const nextConsecutivePlay = isCourt ? consecutivePlay[m.id] + 1 : 0;
-                    sum += Math.pow(2, nextConsecutivePlay);
+                    const stats = getStats(m.id, history);
+                    const newCons = courtIds.has(m.id) ? stats.consecutivePlay + 1 : 0;
+                    sum += Math.pow(newCons, 2);
                 });
                 return sum;
             }
-
             if (criterion === 'pair') {
-                // 同ペア回避
-                const pair1 = pairHistoryCount(config.t1[0].id, config.t1[1].id);
-                const pair2 = pairHistoryCount(config.t2[0].id, config.t2[1].id);
-                return pair1 + pair2;
+                let p1Count = 0, p2Count = 0;
+                const t1 = config.t1.map(p=>p.id);
+                const t2 = config.t2.map(p=>p.id);
+                
+                history.forEach(m => {
+                    const checkPair = (pairA, pairB) => (pairA.includes(pairB[0]) && pairA.includes(pairB[1]));
+                    if (checkPair(m.t1, t1) || checkPair(m.t2, t1)) p1Count++;
+                    if (checkPair(m.t1, t2) || checkPair(m.t2, t2)) p2Count++;
+                });
+                return p1Count + p2Count;
             }
-
             if (criterion === 'opponent') {
-                // 対戦相手回避
-                const op1 = opponentHistoryCount(config.t1[0].id, config.t2[0].id);
-                const op2 = opponentHistoryCount(config.t1[0].id, config.t2[1].id);
-                const op3 = opponentHistoryCount(config.t1[1].id, config.t2[0].id);
-                const op4 = opponentHistoryCount(config.t1[1].id, config.t2[1].id);
-                return op1 + op2 + op3 + op4;
+                let oppCount = 0;
+                const t1 = config.t1.map(p=>p.id);
+                const t2 = config.t2.map(p=>p.id);
+                const currentOpponents = [[t1[0], t2[0]], [t1[0], t2[1]], [t1[1], t2[0]], [t1[1], t2[1]]];
+                
+                history.forEach(m => {
+                    currentOpponents.forEach(([a, b]) => {
+                        if ((m.t1.includes(a) && m.t2.includes(b)) || (m.t1.includes(b) && m.t2.includes(a))) oppCount++;
+                    });
+                });
+                return oppCount;
             }
-
             if (criterion === 'gender') {
-                // 男女構成ペナルティ
                 const t1Males = config.t1.filter(p => p.gender === "M").length;
                 const t2Males = config.t2.filter(p => p.gender === "M").length;
-
-                const isMixed1 = t1Males === 1; 
-                const isMixed2 = t2Males === 1; 
-                const isMaleOnly1 = t1Males === 2; 
-                const isMaleOnly2 = t2Males === 2; 
-                const isFemaleOnly1 = t1Males === 0; 
-                const isFemaleOnly2 = t2Males === 0; 
-
-                if ((isMaleOnly1 && isMaleOnly2) || (isFemaleOnly1 && isFemaleOnly2) || (isMixed1 && isMixed2)) {
+                
+                const is2M = (m) => m === 2;
+                const is2F = (m) => m === 0;
+                const isMixed = (m) => m === 1;
+                
+                if (genderMode === 'strict') { // 男女差を許容しない
+                    if ((is2M(t1Males) && isMixed(t2Males)) || (is2M(t2Males) && isMixed(t1Males))) return 10;
+                    if ((is2F(t1Males) && isMixed(t2Males)) || (is2F(t2Males) && isMixed(t1Males))) return 10;
+                    if ((is2M(t1Males) && is2F(t2Males)) || (is2F(t1Males) && is2M(t2Males))) return 20;
                     return 0;
                 }
-
-                const isOneSideMixed = (isMaleOnly1 && isMixed2) || (isMaleOnly2 && isMixed1) || (isFemaleOnly1 && isMixed2) || (isFemaleOnly2 && isMixed1);
-                const isOppositeGender = (isMaleOnly1 && isFemaleOnly2) || (isMaleOnly2 && isFemaleOnly1);
-
-                if (genderMode === 'strict') {
-                    if (isOneSideMixed) return 10;
-                    if (isOppositeGender) return 20;
-                } else if (genderMode === 'moderate') {
-                    if (isOneSideMixed) return 0;
-                    if (isOppositeGender) return 20;
-                } else { // permissive
+                if (genderMode === 'moderate') { // 男女差をやや許容
+                    if ((is2M(t1Males) && is2F(t2Males)) || (is2F(t1Males) && is2M(t2Males))) return 20;
                     return 0;
                 }
+                // permissive (男女差を許容)
                 return 0;
             }
-
             return 0;
-        }
+        };
 
         function evaluateAndCreateNextMatch(presentMembers, history, priorityOrder, genderMode) {
             if (presentMembers.length < 4) return null;
@@ -242,7 +178,7 @@
             const N = presentMembers.length;
             const configurations = [];
 
-            // 1. 4人の選出及び2ペアの全候補列挙
+            // 全組み合わせの列挙
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     for (let k = j + 1; k < N; k++) {
@@ -260,39 +196,23 @@
                 }
             }
 
-            if (history.length === 0) {
-                const chosen = configurations[Math.floor(Math.random() * configurations.length)];
-                const chosenCourtIds = new Set(chosen.players.map(p => p.id));
-                const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
-
-                return {
-                    id: `match-1`,
-                    players: chosen.players.map(p => p.id),
-                    t1: chosen.t1.map(p => p.id),
-                    t2: chosen.t2.map(p => p.id),
-                    absentees: chosenAbsentees.map(p => p.id)
-                };
-            }
-
-            const preState = getPreState(presentMembers, history);
+            // 段階的フィルター適用
             let candidates = [...configurations];
 
             for (const criterion of priorityOrder) {
-                const scores = candidates.map(config => {
-                    return calculateScore(config, criterion, presentMembers, history, genderMode, preState);
-                });
-
+                const scores = candidates.map(config => calculatePenalty(config, criterion, history, genderMode, presentMembers));
                 const minScore = Math.min(...scores);
+                
+                // 最小スコアのものだけを残す
                 candidates = candidates.filter((_, idx) => scores[idx] === minScore);
-
-                if (candidates.length === 1) {
-                    break;
-                }
+                
+                // 候補が1つに絞られたら終了
+                if (candidates.length === 1) break;
             }
 
+            // 最終的に同点の場合はランダムに選択（1試合目もここを通る）
             const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-            if (!chosen) return null;
-
+            
             const chosenCourtIds = new Set(chosen.players.map(p => p.id));
             const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
 
@@ -313,21 +233,25 @@
             const [groupName, setGroupName] = useState('');
             const [members, setMembers] = useState([]);
             
+            // Settings State
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
-            const [genderMode, setGenderMode] = useState('moderate');
-
+            const [genderMode, setGenderMode] = useState('moderate'); // 'strict', 'moderate', 'permissive'
+            
             const [showSettings, setShowSettings] = useState(false);
             const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
             const [matchList, setMatchList] = useState([]);
-            const [currentMatchPage, setCurrentMatchPage] = useState(0); // ページネーション用 (10試合ずつ)
+            const [matchPage, setMatchPage] = useState(0); // For pagination
             
             const [toast, setToast] = useState({ show: false, message: "" });
             const [capturedImage, setCapturedImage] = useState(null);
             const [showImageModal, setShowImageModal] = useState(false);
 
+            // 参加者の人数を取得する
+            const presentCount = members.filter(m => m.present).length;
+
             useEffect(() => {
-                const stored = localStorage.getItem('nikkori_tennis_groups');
+                const stored = localStorage.getItem('nikkori_tennis_groups_v3');
                 if (stored) {
                     try {
                         setGroups(JSON.parse(stored));
@@ -361,19 +285,16 @@
                     id: newId,
                     name: "",
                     members: [],
-                    settings: {
-                        priorityOrder: DEFAULT_PRIORITY,
-                        genderMode: 'moderate'
-                    }
+                    settings: { priority: DEFAULT_PRIORITY, genderMode: 'moderate' }
                 };
                 const updated = [...groups, newGroup];
                 setGroups(updated);
-                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updated));
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updated));
                 
                 setActiveGroupId(newId);
                 setGroupName("");
                 setMembers([]);
-                setPriorityOrder(newGroup.settings.priorityOrder);
+                setPriorityOrder(newGroup.settings.priority);
                 setGenderMode(newGroup.settings.genderMode);
                 setShowSettings(false);
                 setShowDeleteConfirm(false);
@@ -386,10 +307,8 @@
                 setActiveGroupId(gId);
                 setGroupName(target.name);
                 setMembers(target.members || []);
-                
-                setPriorityOrder(target.settings?.priorityOrder || DEFAULT_PRIORITY);
+                setPriorityOrder(target.settings?.priority || DEFAULT_PRIORITY);
                 setGenderMode(target.settings?.genderMode || 'moderate');
-                
                 setShowSettings(false);
                 setShowDeleteConfirm(false);
                 setPage('group');
@@ -401,26 +320,21 @@
 
                 const updatedGroups = groups.map(g => {
                     if (g.id === activeGroupId) {
-                        return { 
-                            ...g, 
-                            name: resolvedName, 
-                            members: cleanMembers, 
-                            settings: { priorityOrder, genderMode } 
-                        };
+                        return { ...g, name: resolvedName, members: cleanMembers, settings: { priority: priorityOrder, genderMode: genderMode } };
                     }
                     return g;
                 });
                 setGroups(updatedGroups);
                 setMembers(cleanMembers);
                 setGroupName(resolvedName);
-                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updatedGroups));
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updatedGroups));
                 triggerToast("💾 保存しました");
             };
 
             const handleDeleteGroup = () => {
                 const updated = groups.filter(g => g.id !== activeGroupId);
                 setGroups(updated);
-                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updated));
+                localStorage.setItem('nikkori_tennis_groups_v3', JSON.stringify(updated));
                 handleGoHome();
             };
 
@@ -444,18 +358,11 @@
 
             const toggleMemberPresence = (index) => {
                 const copy = [...members];
-                const isCurrentlyPresent = copy[index].present;
-
-                // 参加しようとした場合、現在の参加人数をチェック
-                if (!isCurrentlyPresent) {
-                    const presentCount = copy.filter(m => m.present).length;
-                    if (presentCount >= 12) {
-                        triggerToast("⚠️ 参加者は最大12名までです");
-                        return; // 13人目の参加をブロック
-                    }
+                if (!copy[index].present && presentCount >= 12) {
+                    triggerToast("⚠️ 参加者は最大12名までです");
+                    return;
                 }
-
-                copy[index].present = !isCurrentlyPresent;
+                copy[index].present = !copy[index].present;
                 setMembers(copy);
             };
 
@@ -466,41 +373,19 @@
             };
 
             const handleAddMember = (name, gender) => {
-                if (members.length >= 100) {
-                    triggerToast("⚠️ メンバー登録は最大100名までです");
-                    return;
-                }
                 if (members.some(m => m.name === name)) {
                     triggerToast("⚠️ 同じメンバー名は使えません");
                     return;
                 }
+                const isPresent = presentCount < 12; // 13人目以降は自動的に不参加
                 const newM = {
                     id: `member-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
                     name: name.slice(0, 4),
                     gender: gender,
-                    present: true
+                    present: isPresent
                 };
-                
-                // 参加者上限チェック
-                const presentCount = members.filter(m => m.present).length;
-                if (presentCount >= 12) {
-                    newM.present = false; // 既に12人いる場合は不参加状態で追加
-                    triggerToast("参加者が12名に達しているため、不参加状態で追加しました");
-                }
-                
                 setMembers([...members, newM]);
-            };
-
-            const movePriority = (index, direction) => {
-                const newOrder = [...priorityOrder];
-                const targetIdx = index + direction;
-                if (targetIdx < 0 || targetIdx >= newOrder.length) return;
-
-                const temp = newOrder[index];
-                newOrder[index] = newOrder[targetIdx];
-                newOrder[targetIdx] = temp;
-
-                setPriorityOrder(newOrder);
+                if (!isPresent) triggerToast("⚠️ 最大参加人数の12名に達したため不参加で登録しました");
             };
 
             const handleCreateMatchTable = () => {
@@ -512,22 +397,8 @@
                     return;
                 }
 
-                const resolvedName = groupName.trim() || "（名称未設定のグループ）";
-                const updatedGroups = groups.map(g => {
-                    if (g.id === activeGroupId) {
-                        return { 
-                            ...g, 
-                            name: resolvedName, 
-                            members: cleanMembers, 
-                            settings: { priorityOrder, genderMode } 
-                        };
-                    }
-                    return g;
-                });
-                setGroups(updatedGroups);
-                setMembers(cleanMembers);
-                setGroupName(resolvedName);
-                localStorage.setItem('nikkori_tennis_groups', JSON.stringify(updatedGroups));
+                // Auto-save before creating matches
+                handleSaveGroup();
 
                 const generated = [];
                 for (let i = 0; i < 10; i++) {
@@ -537,42 +408,30 @@
                 }
 
                 setMatchList(generated);
-                setCurrentMatchPage(0); // 1ページ目（0-indexed）から表示
+                setMatchPage(0); // Reset page to first
                 setPage('match');
             };
 
-            const handleNextMatches = () => {
-                const nextPage = currentMatchPage + 1;
-                
-                // 次のページが既に生成済みかチェック
-                if (nextPage * 10 < matchList.length) {
-                    setCurrentMatchPage(nextPage);
-                } else {
-                    // 足りない場合は新たに10試合生成して追加
-                    const cleanMembers = members.filter(m => m.name.trim() !== "");
-                    const activeAttendees = cleanMembers.filter(m => m.present);
-                    if (activeAttendees.length < 4) return;
+            const handleAddMoreMatches = () => {
+                const cleanMembers = members.filter(m => m.name.trim() !== "");
+                const activeAttendees = cleanMembers.filter(m => m.present);
+                if (activeAttendees.length < 4) return;
 
-                    const nextTen = [];
-                    for (let i = 0; i < 10; i++) {
-                        const nextMatch = evaluateAndCreateNextMatch(activeAttendees, [...matchList, ...nextTen], priorityOrder, genderMode);
-                        if (nextMatch) nextTen.push(nextMatch);
-                        else break;
-                    }
-
-                    if (nextTen.length === 0) {
-                        triggerToast("⚠️ これ以上組み合わせを作れません");
-                        return;
-                    }
-                    setMatchList([...matchList, ...nextTen]);
-                    setCurrentMatchPage(nextPage);
+                const nextTen = [];
+                for (let i = 0; i < 10; i++) {
+                    const nextMatch = evaluateAndCreateNextMatch(activeAttendees, [...matchList, ...nextTen], priorityOrder, genderMode);
+                    if (nextMatch) nextTen.push(nextMatch);
+                    else break;
                 }
-            };
 
-            const handlePrevMatches = () => {
-                if (currentMatchPage > 0) {
-                    setCurrentMatchPage(currentMatchPage - 1);
+                if (nextTen.length === 0) {
+                    triggerToast("⚠️ これ以上組み合わせを作れません");
+                    return;
                 }
+                setMatchList([...matchList, ...nextTen]);
+                // Automatically move to the new page
+                setMatchPage(Math.floor(matchList.length / 10));
+                triggerToast("🎾 次の10試合を追加しました");
             };
 
             const handleCopyImage = async () => {
@@ -586,9 +445,7 @@
                         scale: 2, 
                         useCORS: true,
                         backgroundColor: "#ffffff",
-                        logging: false,
-                        windowWidth: element.scrollWidth,
-                        windowHeight: element.scrollHeight
+                        logging: false
                     });
 
                     canvas.toBlob(async (blob) => {
@@ -610,33 +467,37 @@
                 }
             };
 
+            const movePriority = (index, direction) => {
+                const newOrder = [...priorityOrder];
+                const target = index + direction;
+                if (target < 0 || target >= newOrder.length) return;
+                [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+                setPriorityOrder(newOrder);
+            };
+
             const getMemberName = (id) => {
                 const m = members.find(p => p.id === id);
                 if (!m) return { name: "??", isMale: true };
                 return { name: m.name, isMale: m.gender === "M" };
             };
 
+            // 画像化時の文字切れを防ぐため、flexと固定高さを使用
             const NameSpan = ({ player }) => {
                 const len = player.name.length;
                 const textSize = len >= 4 ? 'text-[11px]' : 'text-sm';
                 const bgColor = player.isMale ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700';
                 
                 return (
-                    <span className={`w-full text-center font-bold py-1 rounded ${bgColor} ${textSize} inline-block whitespace-nowrap overflow-visible capture-safe-text`}>
-                        {player.name}
-                    </span>
+                    <div className={`w-[48%] flex items-center justify-center font-bold h-[28px] rounded ${bgColor} ${textSize} overflow-hidden px-0.5`}>
+                        <span className="capture-safe-text whitespace-nowrap pt-0.5">{player.name}</span>
+                    </div>
                 );
             };
 
-            // 日付の取得処理
-            const today = new Date();
-            const dateString = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+            const d = new Date();
+            const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
             
-            // ページに表示する試合リストの切り出し
-            const displayedMatches = matchList.slice(currentMatchPage * 10, (currentMatchPage + 1) * 10);
-            const startIndex = currentMatchPage * 10;
-
-            const presentCount = members.filter(m => m.present).length;
+            const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
 
             return (
                 <div className="flex-grow flex flex-col justify-between">
@@ -718,13 +579,13 @@
                                 </div>
 
                                 <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm space-y-1">
-                                    <div className="mb-2 px-1 text-[10px] text-slate-500 font-bold bg-slate-50 py-1.5 rounded">
-                                        💡 名前（4文字以内）を入力して、性別を選択してください。
-                                    </div>
                                     <div className="flex justify-end items-center mb-1 px-1">
                                         <span className="text-[10px] text-slate-500 font-bold">
-                                            登録 {members.length}名 ／ 参加 <span className="text-emerald-600">{presentCount}名</span> （最大参加12名）
+                                            登録 {members.length}名 ／ 参加 <span className={presentCount > 0 ? "text-emerald-600" : ""}>{presentCount}名</span> （最大参加12名）
                                         </span>
+                                    </div>
+                                    <div className="mb-2 px-1 text-[10px] text-slate-500 font-bold bg-slate-50 py-1.5 rounded">
+                                        💡 名前（4文字以内）を入力して、性別を選択してください。
                                     </div>
                                     
                                     <div className="space-y-1.5 pb-2">
@@ -780,13 +641,7 @@
                                             </div>
                                         ))}
 
-                                        {members.length < 100 ? (
-                                            <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} />
-                                        ) : (
-                                            <div className="text-center text-[10px] text-slate-400 py-2 font-bold bg-slate-50 rounded-lg">
-                                                メンバー登録数は最大100名です
-                                            </div>
-                                        )}
+                                        <EmptyRowCreator onAddMember={handleAddMember} nextNumber={members.length + 1} />
                                     </div>
                                 </div>
 
@@ -812,68 +667,48 @@
                                     </div>
 
                                     {showSettings && (
-                                        <div className="pt-4 space-y-4 mt-2 border-t border-slate-100 animate-in fade-in duration-200">
-                                            {/* 優先順位リスト並び替えUI */}
-                                            <div>
-                                                <span className="text-[11px] font-bold text-slate-500 block mb-2">組み合わせの優先順位</span>
-                                                <div className="space-y-0.5">
-                                                    {priorityOrder.map((key, idx) => (
-                                                        <div key={key} className="flex items-center justify-between px-1 py-1.5 border-b border-slate-100">
-                                                            <span className="text-xs font-bold text-slate-700">
-                                                                {CRITERIA_MAP[key]}
-                                                            </span>
-                                                            <div className="flex space-x-1 shrink-0">
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={idx === 0}
-                                                                    onClick={() => movePriority(idx, -1)}
-                                                                    className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold transition-colors ${idx === 0 ? 'text-slate-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`}
-                                                                >
-                                                                    ▲
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    disabled={idx === priorityOrder.length - 1}
-                                                                    onClick={() => movePriority(idx, 1)}
-                                                                    className={`w-6 h-6 flex items-center justify-center rounded text-[10px] font-bold transition-colors ${idx === priorityOrder.length - 1 ? 'text-slate-200' : 'text-slate-500 bg-slate-100 hover:bg-slate-200'}`}
-                                                                >
-                                                                    ▼
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div className="text-right mt-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setPriorityOrder(DEFAULT_PRIORITY)}
-                                                        className="text-[10px] text-slate-400 hover:text-slate-600 underline focus:outline-none"
+                                        <div className="pt-4 space-y-4 mt-2 border-t border-slate-100">
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-end mb-1">
+                                                    <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位</h3>
+                                                    <button 
+                                                        onClick={() => setPriorityOrder(DEFAULT_PRIORITY)} 
+                                                        className="text-[10px] text-emerald-600 font-bold underline"
                                                     >
                                                         初期設定に戻す
                                                     </button>
                                                 </div>
+                                                <div className="space-y-1">
+                                                    {priorityOrder.map((key, index) => (
+                                                        <div key={key} className="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded border border-slate-100">
+                                                            <span className="text-xs font-bold text-slate-600">
+                                                                <span className="text-slate-400 w-4 inline-block">{index + 1}.</span> 
+                                                                {PRIORITY_LABELS[key]}
+                                                            </span>
+                                                            <div className="flex space-x-1">
+                                                                <button onClick={() => movePriority(index, -1)} disabled={index === 0} className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 disabled:opacity-30">▲</button>
+                                                                <button onClick={() => movePriority(index, 1)} disabled={index === priorityOrder.length - 1} className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 disabled:opacity-30">▼</button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
 
-                                            {/* 男女構成設定UI */}
-                                            <div className="pt-3 border-t border-slate-100">
-                                                <span className="text-[11px] font-bold text-slate-500 block mb-2">男女設定詳細</span>
-                                                <div className="flex flex-col space-y-1">
-                                                    {[
-                                                        { key: 'strict', label: '男女差を許容しない' },
-                                                        { key: 'moderate', label: '男女差をやや許容（推奨）' },
-                                                        { key: 'permissive', label: '男女差を許容' }
-                                                    ].map(item => (
-                                                        <label key={item.key} className="flex items-center space-x-2 py-1.5 px-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
-                                                            <input
-                                                                type="radio"
-                                                                name="genderMode"
-                                                                checked={genderMode === item.key}
-                                                                onChange={() => setGenderMode(item.key)}
-                                                                className="text-emerald-500 focus:ring-emerald-400 w-4 h-4"
-                                                            />
-                                                            <span className="text-xs font-bold text-slate-700">{item.label}</span>
-                                                        </label>
-                                                    ))}
+                                            <div className="space-y-2 pt-2 border-t border-slate-100">
+                                                <h3 className="text-xs font-bold text-slate-700 mb-2">男女設定詳細</h3>
+                                                <div className="space-y-1">
+                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
+                                                        <input type="radio" checked={genderMode === 'strict'} onChange={() => setGenderMode('strict')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女差を許容しない</span>
+                                                    </label>
+                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
+                                                        <input type="radio" checked={genderMode === 'moderate'} onChange={() => setGenderMode('moderate')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女差をやや許容（推奨）</span>
+                                                    </label>
+                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
+                                                        <input type="radio" checked={genderMode === 'permissive'} onChange={() => setGenderMode('permissive')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女差を許容</span>
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
@@ -909,18 +744,19 @@
                         {page === 'match' && (
                             <div className="space-y-3">
                                 
-                                <div id="match-table-capture-area" className="bg-white px-4 py-3 border border-slate-200 rounded-xl">
-                                    <div className="flex justify-between items-baseline border-b-2 border-slate-800 pb-1.5 mb-2">
-                                        <h2 className="font-bold text-base text-slate-800 truncate pr-2 capture-safe-text">
+                                <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl">
+                                    <div className="flex justify-between items-baseline border-b-2 border-slate-800 pb-1 mb-1">
+                                        <h2 className="font-bold text-base text-slate-800 truncate pr-2">
                                             {groupName || "（名称未設定のグループ）"}
                                         </h2>
-                                        <span className="text-[10px] text-slate-500 whitespace-nowrap font-bold capture-safe-text">
-                                            {dateString}
+                                        <span className="text-[10px] text-slate-500 whitespace-nowrap font-bold">
+                                            {dateStr}
                                         </span>
                                     </div>
 
                                     <div className="flex flex-col">
-                                        {displayedMatches.map((m, index) => {
+                                        {currentMatches.map((m, index) => {
+                                            const matchNum = matchPage * 10 + index + 1;
                                             const p1 = getMemberName(m.t1[0]);
                                             const p2 = getMemberName(m.t1[1]);
                                             const p3 = getMemberName(m.t2[0]);
@@ -928,13 +764,13 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-2 flex flex-col justify-center">
-                                                    <div className="flex items-center mb-1.5 w-full">
-                                                        <span className="text-[11px] font-extrabold text-slate-700 w-12 shrink-0 capture-safe-text">
-                                                            第{startIndex + index + 1}試合
+                                                <div key={m.id} className="border-b border-slate-200 py-1 flex flex-col justify-center">
+                                                    <div className="flex items-end mb-0.5 w-full overflow-hidden">
+                                                        <span className="text-[10px] font-extrabold text-slate-700 w-12 shrink-0 leading-none pb-[1px]">
+                                                            第{matchNum}試合
                                                         </span>
                                                         {absNames.length > 0 && (
-                                                            <span className="text-[10px] text-slate-500 capture-safe-text">
+                                                            <span className="text-[9px] text-slate-500 truncate leading-none pb-[1px]">
                                                                 休: {absNames.map(a => a.name).join(', ')}
                                                             </span>
                                                         )}
@@ -942,13 +778,13 @@
                                                     
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center justify-center space-x-1 w-[46%]">
-                                                            <div className="flex-1 min-w-0"><NameSpan player={p1} /></div>
-                                                            <div className="flex-1 min-w-0"><NameSpan player={p2} /></div>
+                                                            <NameSpan player={p1} />
+                                                            <NameSpan player={p2} />
                                                         </div>
-                                                        <div className="w-[8%] text-center text-[10px] text-slate-400 font-bold capture-safe-text">vs</div>
+                                                        <div className="w-[8%] text-center text-[10px] text-slate-400 font-bold">vs</div>
                                                         <div className="flex items-center justify-center space-x-1 w-[46%]">
-                                                            <div className="flex-1 min-w-0"><NameSpan player={p3} /></div>
-                                                            <div className="flex-1 min-w-0"><NameSpan player={p4} /></div>
+                                                            <NameSpan player={p3} />
+                                                            <NameSpan player={p4} />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -957,31 +793,38 @@
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center mt-1 px-1">
-                                    <div className="w-1/3 text-left">
-                                        {currentMatchPage > 0 ? (
-                                            <button onClick={handlePrevMatches} className="text-emerald-600 font-bold text-xs py-2 hover:text-emerald-700 transition-colors">
-                                                &lt; 前の10試合
-                                            </button>
-                                        ) : <div></div>}
-                                    </div>
-                                    <div className="w-1/3 text-center text-[10px] text-slate-400 font-bold">
-                                        {startIndex + 1} - {startIndex + displayedMatches.length} 試合
-                                    </div>
-                                    <div className="w-1/3 text-right">
-                                        <button onClick={handleNextMatches} className="text-emerald-600 font-bold text-xs py-2 hover:text-emerald-700 transition-colors">
-                                            次の10試合 &gt;
+                                <div className="space-y-3 mt-4">
+                                    <div className="flex justify-between space-x-2">
+                                        <button 
+                                            onClick={() => setMatchPage(p => Math.max(0, p - 1))}
+                                            disabled={matchPage === 0}
+                                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl shadow-sm transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            前の10試合
+                                        </button>
+                                        <button 
+                                            onClick={() => setMatchPage(p => p + 1)}
+                                            disabled={(matchPage + 1) * 10 >= matchList.length}
+                                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl shadow-sm transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            次の10試合
                                         </button>
                                     </div>
-                                </div>
 
-                                <div className="space-y-2 mt-4 pt-2 border-t border-slate-200">
+                                    <button
+                                        type="button"
+                                        onClick={handleAddMoreMatches}
+                                        className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl shadow-sm transition-all text-sm mt-2"
+                                    >
+                                        対戦表を追加作成する
+                                    </button>
+                                    
                                     <button
                                         type="button"
                                         onClick={handleCopyImage}
-                                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center"
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center"
                                     >
-                                        <CopyIcon /> 対戦表を画像コピー
+                                        <CopyIcon /> 対戦表を画像でコピー
                                     </button>
                                     
                                     <button
