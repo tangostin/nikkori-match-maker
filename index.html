@@ -4,33 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>にっこり対戦表メーカー</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Babel Standalone CDN -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- html2canvas CDN for rendering table to image -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Line+Seed+JP:wght@400;700;800&family=Nunito:wght@400;700;900&display=swap');
         body {
-            font-family: 'Line Seed JP', 'Nunito', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Line Seed JP', 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f8fafc;
             -webkit-tap-highlight-color: transparent;
         }
         /* html2canvas render fix for text cropping */
         .capture-safe-text {
-            line-height: 1 !important;
+            line-height: 1.2 !important;
         }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="text-slate-800 antialiased min-h-screen flex flex-col bg-slate-50">
 
     <div id="root" class="flex-grow flex flex-col"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const SettingsIcon = ({ className }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        const SettingsIcon = ({ className = "w-4 h-4" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                 <circle cx="12" cy="12" r="3" />
             </svg>
@@ -52,7 +56,7 @@
         );
 
         const HomeIcon = () => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block mr-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block">
                 <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
@@ -68,15 +72,38 @@
         const DEFAULT_GROUPS = [];
 
         const PRIORITY_LABELS = {
-            count: '試合数均等',
+            count: '出場数均等',
             break: '連続休憩回避',
-            consecutive: '連続試合回避',
+            consecutive: '連続出場回避',
             pair: '同一ペア回避',
             opponent: '同一相手回避',
-            gender: '男女均等'
+            card: '同一カード回避',
+            gender: '男女バランス'
         };
 
-        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'gender'];
+        const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender'];
+
+        const ensurePriorityList = (pList) => {
+            if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
+            let list = [...pList];
+            if (!list.includes('card')) {
+                const oppIdx = list.indexOf('opponent');
+                if (oppIdx !== -1) {
+                    list.splice(oppIdx + 1, 0, 'card');
+                } else {
+                    list.push('card');
+                }
+            }
+            return list;
+        };
+
+        const normalizeGenderMode = (mode) => {
+            if (mode === 'strict') return 'balance';
+            if (mode === 'moderate') return 'consider';
+            if (mode === 'permissive') return 'none';
+            if (['mix', 'balance', 'consider', 'none'].includes(mode)) return mode;
+            return 'consider';
+        };
 
         const getStats = (playerId, history) => {
             let matchCount = 0, consecutiveRest = 0, consecutivePlay = 0;
@@ -99,8 +126,6 @@
                 presentMembers.forEach(m => {
                     const stats = getStats(m.id, history);
                     const newCount = stats.matchCount + (courtIds.has(m.id) ? 1 : 0);
-                    // 2の累乗ではなく、計算の安定性を考慮して単純な二乗にする (指数爆発を防ぐため)
-                    // ただし順序は維持される。
                     sum += Math.pow(newCount, 2);
                 });
                 return sum;
@@ -148,25 +173,42 @@
                 });
                 return oppCount;
             }
+            if (criterion === 'card') {
+                let cardCount = 0;
+                const t1 = config.t1.map(p => p.id);
+                const t2 = config.t2.map(p => p.id);
+                
+                history.forEach(m => {
+                    const isMatchT1T1 = m.t1.includes(t1[0]) && m.t1.includes(t1[1]);
+                    const isMatchT2T2 = m.t2.includes(t2[0]) && m.t2.includes(t2[1]);
+                    const isMatchT1T2 = m.t1.includes(t2[0]) && m.t1.includes(t2[1]);
+                    const isMatchT2T1 = m.t2.includes(t1[0]) && m.t1.includes(t1[1]);
+                    
+                    if ((isMatchT1T1 && isMatchT2T2) || (isMatchT1T2 && isMatchT2T1)) {
+                        cardCount++;
+                    }
+                });
+                return cardCount;
+            }
             if (criterion === 'gender') {
                 const t1Males = config.t1.filter(p => p.gender === "M").length;
                 const t2Males = config.t2.filter(p => p.gender === "M").length;
                 
-                const is2M = (m) => m === 2;
-                const is2F = (m) => m === 0;
-                const isMixed = (m) => m === 1;
-                
-                if (genderMode === 'strict') { // 男女差を許容しない
-                    if ((is2M(t1Males) && isMixed(t2Males)) || (is2M(t2Males) && isMixed(t1Males))) return 10;
-                    if ((is2F(t1Males) && isMixed(t2Males)) || (is2F(t2Males) && isMixed(t1Males))) return 10;
-                    if ((is2M(t1Males) && is2F(t2Males)) || (is2F(t1Males) && is2M(t2Males))) return 20;
+                if (genderMode === 'mix') {
+                    if (t1Males === 1 && t2Males === 1) return 0;
+                    return 10;
+                }
+                if (genderMode === 'balance') {
+                    if ((t1Males === 2 && t2Males === 2) || (t1Males === 0 && t2Males === 0) || (t1Males === 1 && t2Males === 1)) return 0;
+                    return 10;
+                }
+                if (genderMode === 'consider') {
+                    if ((t1Males === 2 && t2Males === 0) || (t1Males === 0 && t2Males === 2)) return 10;
                     return 0;
                 }
-                if (genderMode === 'moderate') { // 男女差をやや許容
-                    if ((is2M(t1Males) && is2F(t2Males)) || (is2F(t1Males) && is2M(t2Males))) return 20;
+                if (genderMode === 'none') {
                     return 0;
                 }
-                // permissive (男女差を許容)
                 return 0;
             }
             return 0;
@@ -178,7 +220,6 @@
             const N = presentMembers.length;
             const configurations = [];
 
-            // 全組み合わせの列挙
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     for (let k = j + 1; k < N; k++) {
@@ -196,23 +237,17 @@
                 }
             }
 
-            // 段階的フィルター適用
             let candidates = [...configurations];
 
             for (const criterion of priorityOrder) {
                 const scores = candidates.map(config => calculatePenalty(config, criterion, history, genderMode, presentMembers));
                 const minScore = Math.min(...scores);
                 
-                // 最小スコアのものだけを残す
                 candidates = candidates.filter((_, idx) => scores[idx] === minScore);
-                
-                // 候補が1つに絞られたら終了
                 if (candidates.length === 1) break;
             }
 
-            // 最終的に同点の場合はランダムに選択（1試合目もここを通る）
             const chosen = candidates[Math.floor(Math.random() * candidates.length)];
-            
             const chosenCourtIds = new Set(chosen.players.map(p => p.id));
             const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
 
@@ -235,19 +270,18 @@
             
             // Settings State
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
-            const [genderMode, setGenderMode] = useState('moderate'); // 'strict', 'moderate', 'permissive'
+            const [genderMode, setGenderMode] = useState('none');
             
             const [showSettings, setShowSettings] = useState(false);
             const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
             const [matchList, setMatchList] = useState([]);
-            const [matchPage, setMatchPage] = useState(0); // For pagination
+            const [matchPage, setMatchPage] = useState(0);
             
             const [toast, setToast] = useState({ show: false, message: "" });
             const [capturedImage, setCapturedImage] = useState(null);
             const [showImageModal, setShowImageModal] = useState(false);
 
-            // 参加者の人数を取得する
             const presentCount = members.filter(m => m.present).length;
 
             useEffect(() => {
@@ -285,7 +319,7 @@
                     id: newId,
                     name: "",
                     members: [],
-                    settings: { priority: DEFAULT_PRIORITY, genderMode: 'moderate' }
+                    settings: { priority: DEFAULT_PRIORITY, genderMode: 'none' }
                 };
                 const updated = [...groups, newGroup];
                 setGroups(updated);
@@ -295,7 +329,7 @@
                 setGroupName("");
                 setMembers([]);
                 setPriorityOrder(newGroup.settings.priority);
-                setGenderMode(newGroup.settings.genderMode);
+                setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
                 setShowSettings(false);
                 setShowDeleteConfirm(false);
                 setPage('group');
@@ -307,8 +341,8 @@
                 setActiveGroupId(gId);
                 setGroupName(target.name);
                 setMembers(target.members || []);
-                setPriorityOrder(target.settings?.priority || DEFAULT_PRIORITY);
-                setGenderMode(target.settings?.genderMode || 'moderate');
+                setPriorityOrder(ensurePriorityList(target.settings?.priority));
+                setGenderMode(normalizeGenderMode(target.settings?.genderMode));
                 setShowSettings(false);
                 setShowDeleteConfirm(false);
                 setPage('group');
@@ -377,7 +411,7 @@
                     triggerToast("⚠️ 同じメンバー名は使えません");
                     return;
                 }
-                const isPresent = presentCount < 12; // 13人目以降は自動的に不参加
+                const isPresent = presentCount < 12;
                 const newM = {
                     id: `member-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
                     name: name.slice(0, 4),
@@ -397,7 +431,6 @@
                     return;
                 }
 
-                // Auto-save before creating matches
                 handleSaveGroup();
 
                 const generated = [];
@@ -408,11 +441,19 @@
                 }
 
                 setMatchList(generated);
-                setMatchPage(0); // Reset page to first
+                setMatchPage(0);
                 setPage('match');
             };
 
-            const handleAddMoreMatches = () => {
+            const handleNextPageOrGenerate = () => {
+                const targetPageIndex = matchPage + 1;
+                const requiredMatchesCount = (targetPageIndex + 1) * 10;
+
+                if (matchList.length >= requiredMatchesCount) {
+                    setMatchPage(targetPageIndex);
+                    return;
+                }
+
                 const cleanMembers = members.filter(m => m.name.trim() !== "");
                 const activeAttendees = cleanMembers.filter(m => m.present);
                 if (activeAttendees.length < 4) return;
@@ -429,9 +470,7 @@
                     return;
                 }
                 setMatchList([...matchList, ...nextTen]);
-                // Automatically move to the new page
-                setMatchPage(Math.floor(matchList.length / 10));
-                triggerToast("🎾 次の10試合を追加しました");
+                setMatchPage(targetPageIndex);
             };
 
             const handleCopyImage = async () => {
@@ -482,44 +521,44 @@
             };
 
             const NameSpan = ({ player }) => {
-            const len = player.name.length;
-            const textSize = len >= 4 ? 'text-sm' : 'text-base';
-            const bgColor = player.isMale ? 'bg-sky-50 text-sky-700' : 'bg-rose-50 text-rose-700';
-            
-            return (
-                <div className={`w-[48%] flex items-center justify-center font-bold h-8 rounded ${bgColor} ${textSize} px-0.5`}>
-                    <span className="whitespace-nowrap">{player.name}</span>
-                </div>
-            );
-        };
+                const len = player.name.length;
+                const textSize = len >= 4 ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
+                const bgColor = player.isMale ? 'bg-sky-50 text-sky-700 border-sky-100' : 'bg-rose-50 text-rose-700 border-rose-100';
+                
+                return (
+                    <div className={`w-[48%] flex items-center justify-center font-bold h-8 rounded border ${bgColor} ${textSize} px-0.5 capture-safe-text`}>
+                        <span className="whitespace-nowrap truncate">{player.name}</span>
+                    </div>
+                );
+            };
 
-        const d = new Date();
+            const d = new Date();
             const dateStr = `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-            
             const currentMatches = matchList.slice(matchPage * 10, (matchPage + 1) * 10);
 
             return (
                 <div className="flex-grow flex flex-col justify-between">
                     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
                         <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
-                            <div className="flex items-center space-x-1 cursor-pointer" onClick={handleGoHome}>
-                                <span className="font-extrabold text-lg tracking-tight text-slate-800">
-                                    にっこり対戦表
+                            <div className="flex items-center space-x-1.5 cursor-pointer" onClick={handleGoHome}>
+                                <span className="font-extrabold text-lg tracking-tight text-slate-800 flex items-center gap-1.5">
+                                    <span className="text-xl">😊</span> にっこり対戦表メーカー
                                 </span>
                             </div>
                             {page !== 'top' && (
                                 <button 
                                     onClick={handleGoHome}
-                                    className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full flex items-center shadow-sm active:scale-95 transition-all"
+                                    className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full flex items-center justify-center shadow-sm active:scale-95 transition-all"
+                                    title="HOMEへ"
+                                    aria-label="HOMEへ"
                                 >
-                                    <HomeIcon /> TOPへ戻る
+                                    <HomeIcon />
                                 </button>
                             )}
                         </div>
                     </header>
 
-                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-5 pb-10">
-                        
+                    <main className="flex-grow max-w-md w-full mx-auto px-4 py-4 pb-10">
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
@@ -557,7 +596,7 @@
 
                                 <button
                                     onClick={handleCreateNewGroup}
-                                    className="w-full bg-slate-800 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-xl shadow transition-all flex items-center justify-center space-x-2"
+                                    className="w-full bg-slate-800 hover:bg-emerald-600 text-white font-bold py-3.5 px-6 rounded-xl shadow transition-all flex items-center justify-center space-x-2 active:scale-95"
                                 >
                                     <PlusIcon /><span>新規グループを作成する</span>
                                 </button>
@@ -565,25 +604,39 @@
                         )}
 
                         {page === 'group' && (
-                            <div className="space-y-4">
-                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                                    <label className="text-[10px] font-bold text-slate-400 block mb-1">グループ名</label>
+                            <div className="space-y-3">
+                                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm flex items-center justify-between gap-2">
                                     <input
                                         type="text"
                                         value={groupName}
                                         onChange={(e) => setGroupName(e.target.value)}
                                         placeholder="グループ名を入力"
-                                        className="w-full font-bold text-lg border-b border-slate-200 focus:border-emerald-500 outline-none py-1 transition-colors"
+                                        className="w-full font-bold text-lg outline-none py-0.5 transition-colors bg-transparent text-slate-800"
                                     />
+                                    {!showDeleteConfirm ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteConfirm(true)}
+                                            className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors shrink-0"
+                                            title="グループを削除"
+                                        >
+                                            <TrashIcon />
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center space-x-1 shrink-0 bg-rose-50 p-1 rounded-lg">
+                                            <button onClick={handleDeleteGroup} className="bg-rose-500 text-white px-2 py-1 rounded text-[10px] font-bold">削除</button>
+                                            <button onClick={() => setShowDeleteConfirm(false)} className="bg-white text-slate-600 border border-slate-200 px-2 py-1 rounded text-[10px] font-bold">取消</button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm space-y-1">
                                     <div className="flex justify-end items-center mb-1 px-1">
-                                        <span className="text-[10px] text-slate-500 font-bold">
-                                            登録 {members.length}名 ／ 参加 <span className={presentCount > 0 ? "text-emerald-600" : ""}>{presentCount}名</span> （最大参加12名）
+                                        <span className="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg">
+                                            登録 {members.length}名 ／ 参加 <span className={presentCount > 0 ? "text-emerald-600 font-extrabold" : ""}>{presentCount}名</span> （最大12名）
                                         </span>
                                     </div>
-                                    <div className="mb-2 px-1 text-[10px] text-slate-500 font-bold bg-slate-50 py-1.5 rounded">
+                                    <div className="mb-2 px-1 py-1 text-[11px] text-slate-400 font-bold">
                                         💡 名前（4文字以内）を入力して、性別を選択してください。
                                     </div>
                                     
@@ -606,7 +659,7 @@
                                                     value={m.name}
                                                     onChange={(e) => updateMemberName(index, e.target.value)}
                                                     maxLength={4}
-                                                    className={`flex-grow bg-transparent border-none focus:ring-0 outline-none text-sm font-bold px-1 ${!m.present && 'text-slate-400'}`}
+                                                    className={`flex-grow bg-transparent border-none focus:ring-0 outline-none text-sm font-bold px-1 ${!m.present ? 'text-slate-400' : ''}`}
                                                 />
 
                                                 <div className="flex space-x-1 shrink-0">
@@ -648,10 +701,10 @@
                                     <button
                                         type="button"
                                         onClick={() => setShowSettings(!showSettings)}
-                                        className="flex items-center text-xs font-bold text-slate-600 focus:outline-none"
+                                        className="flex items-center text-xs font-bold text-slate-600 focus:outline-none whitespace-nowrap"
                                     >
-                                        <SettingsIcon className="mr-1" />
-                                        詳細設定
+                                        <SettingsIcon className="w-4 h-4 mr-1 shrink-0" />
+                                        <span className="whitespace-nowrap">詳細設定</span>
                                         <span className={`ml-1 transform transition-transform ${showSettings ? 'rotate-180' : ''}`}>▼</span>
                                     </button>
                                     
@@ -694,19 +747,23 @@
                                             </div>
 
                                             <div className="space-y-2 pt-2 border-t border-slate-100">
-                                                <h3 className="text-xs font-bold text-slate-700 mb-2">男女設定詳細</h3>
+                                                <h3 className="text-xs font-bold text-slate-700 mb-2">男女バランス設定</h3>
                                                 <div className="space-y-1">
                                                     <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'strict'} onChange={() => setGenderMode('strict')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女差を許容しない</span>
+                                                        <input type="radio" checked={genderMode === 'mix'} onChange={() => setGenderMode('mix')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">ミックスダブルス</span>
                                                     </label>
                                                     <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'moderate'} onChange={() => setGenderMode('moderate')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女差をやや許容（推奨）</span>
+                                                        <input type="radio" checked={genderMode === 'balance'} onChange={() => setGenderMode('balance')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女バランス均等</span>
                                                     </label>
                                                     <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'permissive'} onChange={() => setGenderMode('permissive')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女差を許容</span>
+                                                        <input type="radio" checked={genderMode === 'consider'} onChange={() => setGenderMode('consider')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女バランスを考慮する</span>
+                                                    </label>
+                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
+                                                        <input type="radio" checked={genderMode === 'none'} onChange={() => setGenderMode('none')} className="accent-emerald-500" />
+                                                        <span className="text-xs font-bold text-slate-600">男女バランスを考慮しない</span>
                                                     </label>
                                                 </div>
                                             </div>
@@ -714,42 +771,37 @@
                                     )}
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={handleCreateMatchTable}
-                                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-sm transition-all text-base mt-2"
-                                >
-                                    対戦表作成
-                                </button>
+                                <div className="space-y-2 mt-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleCreateMatchTable}
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-sm transition-all text-base active:scale-95"
+                                    >
+                                        対戦表を作成する
+                                    </button>
 
-                                <div className="mt-8 text-center pb-4">
-                                    {!showDeleteConfirm ? (
-                                        <button onClick={() => setShowDeleteConfirm(true)} className="text-[11px] font-bold text-rose-400">
-                                            グループを削除
+                                    <div className="pt-1 flex justify-start">
+                                        <button
+                                            type="button"
+                                            onClick={handleGoHome}
+                                            className="text-slate-500 hover:text-slate-800 font-bold py-1.5 px-1 text-xs transition-colors flex items-center active:scale-95"
+                                        >
+                                            ←TOPに戻る
                                         </button>
-                                    ) : (
-                                        <div className="bg-rose-50 rounded-xl p-3 inline-block">
-                                            <p className="text-[10px] font-bold text-rose-700 mb-2">削除しますか？</p>
-                                            <div className="flex space-x-2">
-                                                <button onClick={() => setShowDeleteConfirm(false)} className="bg-white text-slate-600 border border-slate-200 px-3 py-1 rounded text-[10px] font-bold">キャンセル</button>
-                                                <button onClick={handleDeleteGroup} className="bg-rose-500 text-white px-3 py-1 rounded text-[10px] font-bold">削除する</button>
-                                            </div>
-                                        </div>
-                                    )}
+                                    </div>
                                 </div>
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 
-                                <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl">
+                                <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
                                     <div className="flex justify-between items-end border-b-2 border-slate-800 pb-1 mb-1">
-                                        <h2 className="font-bold text-base leading-[1.3] text-slate-800 truncate pr-2">
+                                        <h2 className="font-bold text-base leading-[1.3] text-slate-800 truncate pr-2 capture-safe-text">
                                             {groupName || "（名称未設定のグループ）"}
                                         </h2>
-                                        <span className="text-[10px] text-slate-500 whitespace-nowrap font-bold">
+                                        <span className="text-[10px] text-slate-500 whitespace-nowrap font-bold capture-safe-text">
                                             {dateStr}
                                         </span>
                                     </div>
@@ -765,23 +817,23 @@
 
                                             return (
                                                 <div key={m.id} className="border-b border-slate-200 py-2.5 flex flex-col justify-center">
-                                                <div className="flex items-center mb-1.5 w-full">
-                                                    <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0">
-                                                        第{matchNum}試合
-                                                    </span>
-                                                    {absNames.length > 0 && (
-                                                        <span className="text-xs text-slate-500 font-bold flex-1">
-                                                            休: {absNames.map(a => a.name).join(', ')}
+                                                    <div className="flex items-center mb-1.5 w-full">
+                                                        <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0 capture-safe-text">
+                                                            第{matchNum}試合
                                                         </span>
-                                                    )}
-                                                </div>
-                                            
-                                                <div className="flex items-center justify-between">
+                                                        {absNames.length > 0 && (
+                                                            <span className="text-xs text-slate-500 font-bold flex-1 truncate capture-safe-text">
+                                                                休: {absNames.map(a => a.name).join(', ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                
+                                                    <div className="flex items-center justify-between">
                                                         <div className="flex items-center justify-center space-x-1 w-[46%]">
                                                             <NameSpan player={p1} />
                                                             <NameSpan player={p2} />
                                                         </div>
-                                                        <div className="w-[8%] text-center text-[10px] text-slate-400 font-bold">vs</div>
+                                                        <div className="w-[8%] text-center text-xs text-slate-400 font-bold capture-safe-text">vs</div>
                                                         <div className="flex items-center justify-center space-x-1 w-[46%]">
                                                             <NameSpan player={p3} />
                                                             <NameSpan player={p4} />
@@ -794,52 +846,50 @@
                                 </div>
 
                                 <div className="space-y-3 mt-4">
-                                    <div className="flex justify-between space-x-2">
+                                    <div className="flex justify-between items-center px-1">
                                         <button 
+                                            type="button"
                                             onClick={() => setMatchPage(p => Math.max(0, p - 1))}
                                             disabled={matchPage === 0}
-                                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl shadow-sm transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className={`text-xs font-bold py-1.5 transition-colors ${
+                                                matchPage > 0 
+                                                ? 'text-slate-600 hover:text-slate-800 cursor-pointer active:scale-95' 
+                                                : 'text-slate-300 cursor-not-allowed'
+                                            }`}
                                         >
-                                            前の10試合
+                                            <<前の10試合
                                         </button>
                                         <button 
-                                            onClick={() => setMatchPage(p => p + 1)}
-                                            disabled={(matchPage + 1) * 10 >= matchList.length}
-                                            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-xl shadow-sm transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                            type="button"
+                                            onClick={handleNextPageOrGenerate}
+                                            className="text-xs font-bold py-1.5 text-slate-600 hover:text-slate-800 transition-colors active:scale-95 cursor-pointer"
                                         >
-                                            次の10試合
+                                            次の10試合>>
                                         </button>
                                     </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={handleAddMoreMatches}
-                                        className="w-full bg-slate-100 border border-slate-300 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl shadow-sm transition-all text-sm mt-2"
-                                    >
-                                        対戦表を追加作成する
-                                    </button>
                                     
                                     <button
                                         type="button"
                                         onClick={handleCopyImage}
-                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center"
+                                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-sm transition-all text-sm flex items-center justify-center active:scale-95"
                                     >
                                         <CopyIcon /> 対戦表を画像でコピー
                                     </button>
                                     
-                                    <button
-                                        type="button"
-                                        onClick={handleBackToGroup}
-                                        className="w-full text-slate-400 hover:text-slate-500 font-bold py-2 text-xs transition-colors mt-2"
-                                    >
-                                        設定画面に戻る
-                                    </button>
+                                    <div className="pt-1 flex justify-start">
+                                        <button
+                                            type="button"
+                                            onClick={handleBackToGroup}
+                                            className="text-slate-500 hover:text-slate-800 font-bold py-1.5 px-1 text-xs transition-colors flex items-center active:scale-95"
+                                        >
+                                            ←設定に戻る
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    {}
                     {showImageModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
