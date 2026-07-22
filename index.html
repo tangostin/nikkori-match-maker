@@ -85,42 +85,43 @@
 
         const ensurePriorityList = (pList) => {
             if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
-            let list = [...pList];
-            if (!list.includes('card')) {
-                const oppIdx = list.indexOf('opponent');
-                if (oppIdx !== -1) {
-                    list.splice(oppIdx + 1, 0, 'card');
-                } else {
-                    list.push('card');
-                }
-            }
+            let list = pList.filter(p => Object.keys(PRIORITY_LABELS).includes(p));
+            DEFAULT_PRIORITY.forEach(dp => {
+                if (!list.includes(dp)) list.push(dp);
+            });
             return list;
         };
 
         const normalizeGenderMode = (mode) => {
-            if (mode === 'strict') return 'balance';
-            if (mode === 'moderate') return 'consider';
-            if (mode === 'permissive') return 'none';
             if (['mix', 'balance', 'consider', 'none'].includes(mode)) return mode;
-            return 'consider';
+            return 'none';
         };
 
         const getStats = (playerId, history) => {
-            let matchCount = 0, consecutiveRest = 0, consecutivePlay = 0;
-            for (let i = history.length - 1; i >= 0; i--) {
-                if (history[i].players.includes(playerId)) {
-                    matchCount++;
-                    if (consecutiveRest === 0) consecutivePlay++;
-                } else {
-                    if (consecutivePlay === 0) consecutiveRest++;
-                }
+            let matchCount = 0;
+            for (const h of history) {
+                if (h.players.includes(playerId)) matchCount++;
             }
+
+            let consecutiveRest = 0;
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (!history[i].players.includes(playerId)) consecutiveRest++;
+                else break;
+            }
+
+            let consecutivePlay = 0;
+            for (let i = history.length - 1; i >= 0; i--) {
+                if (history[i].players.includes(playerId)) consecutivePlay++;
+                else break;
+            }
+
             return { matchCount, consecutiveRest, consecutivePlay };
         };
 
         const calculatePenalty = (config, criterion, history, genderMode, presentMembers) => {
             const courtIds = new Set(config.players.map(p => p.id));
             
+            // ①出場数均等：各プレイヤーの「今回を含む出場数」の2乗の合計
             if (criterion === 'count') {
                 let sum = 0;
                 presentMembers.forEach(m => {
@@ -130,6 +131,8 @@
                 });
                 return sum;
             }
+            
+            // ②連続休憩回避：各プレイヤーの「今回を含む連続休憩数」の2乗の合計
             if (criterion === 'break') {
                 let sum = 0;
                 presentMembers.forEach(m => {
@@ -139,6 +142,8 @@
                 });
                 return sum;
             }
+            
+            // ③連続出場回避：各プレイヤーの「今回を含む連続出場数」の2乗の合計
             if (criterion === 'consecutive') {
                 let sum = 0;
                 presentMembers.forEach(m => {
@@ -148,68 +153,118 @@
                 });
                 return sum;
             }
+            
+            // ④同一ペア回避：各プレイヤーの「今回のペアでの今回を含む出場数」の2乗の合計
             if (criterion === 'pair') {
-                let p1Count = 0, p2Count = 0;
-                const t1 = config.t1.map(p=>p.id);
-                const t2 = config.t2.map(p=>p.id);
-                
-                history.forEach(m => {
-                    const checkPair = (pairA, pairB) => (pairA.includes(pairB[0]) && pairA.includes(pairB[1]));
-                    if (checkPair(m.t1, t1) || checkPair(m.t1, t2)) p1Count++;
-                    if (checkPair(m.t2, t1) || checkPair(m.t2, t2)) p2Count++;
-                });
-                return p1Count + p2Count;
-            }
-            if (criterion === 'opponent') {
-                let oppCount = 0;
-                const t1 = config.t1.map(p=>p.id);
-                const t2 = config.t2.map(p=>p.id);
-                const currentOpponents = [[t1[0], t2[0]], [t1[0], t2[1]], [t1[1], t2[0]], [t1[1], t2[1]]];
-                
-                history.forEach(m => {
-                    currentOpponents.forEach(([a, b]) => {
-                        if ((m.t1.includes(a) && m.t2.includes(b)) || (m.t1.includes(b) && m.t2.includes(a))) oppCount++;
-                    });
-                });
-                return oppCount;
-            }
-            if (criterion === 'card') {
-                let cardCount = 0;
+                let sum = 0;
                 const t1 = config.t1.map(p => p.id);
                 const t2 = config.t2.map(p => p.id);
                 
-                history.forEach(m => {
-                    const isMatchT1T1 = m.t1.includes(t1[0]) && m.t1.includes(t1[1]);
-                    const isMatchT2T2 = m.t2.includes(t2[0]) && m.t2.includes(t2[1]);
-                    const isMatchT1T2 = m.t1.includes(t2[0]) && m.t1.includes(t2[1]);
-                    const isMatchT2T1 = m.t2.includes(t1[0]) && m.t1.includes(t1[1]);
-                    
-                    if ((isMatchT1T1 && isMatchT2T2) || (isMatchT1T2 && isMatchT2T1)) {
-                        cardCount++;
+                const getPairCount = (pA, pB) => {
+                    let count = 0;
+                    history.forEach(m => {
+                        if ((m.t1.includes(pA) && m.t1.includes(pB)) || 
+                            (m.t2.includes(pA) && m.t2.includes(pB))) {
+                            count++;
+                        }
+                    });
+                    return count;
+                };
+
+                presentMembers.forEach(m => {
+                    if (t1.includes(m.id)) {
+                        const partner = t1[0] === m.id ? t1[1] : t1[0];
+                        sum += Math.pow(getPairCount(m.id, partner) + 1, 2);
+                    } else if (t2.includes(m.id)) {
+                        const partner = t2[0] === m.id ? t2[1] : t2[0];
+                        sum += Math.pow(getPairCount(m.id, partner) + 1, 2);
                     }
                 });
-                return cardCount;
+                return sum;
             }
+            
+            // ⑤同一相手回避：各プレイヤーの「今回の相手との今回を含む対戦数」の2乗の合計
+            if (criterion === 'opponent') {
+                let sum = 0;
+                const t1 = config.t1.map(p => p.id);
+                const t2 = config.t2.map(p => p.id);
+
+                const getOpponentCount = (pA, pB) => {
+                    let count = 0;
+                    history.forEach(m => {
+                        if ((m.t1.includes(pA) && m.t2.includes(pB)) || 
+                            (m.t2.includes(pA) && m.t1.includes(pB))) {
+                            count++;
+                        }
+                    });
+                    return count;
+                };
+
+                presentMembers.forEach(m => {
+                    if (t1.includes(m.id)) {
+                        sum += Math.pow(getOpponentCount(m.id, t2[0]) + 1, 2) + Math.pow(getOpponentCount(m.id, t2[1]) + 1, 2);
+                    } else if (t2.includes(m.id)) {
+                        sum += Math.pow(getOpponentCount(m.id, t1[0]) + 1, 2) + Math.pow(getOpponentCount(m.id, t1[1]) + 1, 2);
+                    }
+                });
+                return sum;
+            }
+
+            // ⑥同一カード回避：対象のすべての組み合わせについて、今回を含む同一カードをカウントしてそのまま点数（低い方が優先）
+            if (criterion === 'card') {
+                const t1 = config.t1.map(p => p.id).sort().join(',');
+                const t2 = config.t2.map(p => p.id).sort().join(',');
+                let count = 0;
+                history.forEach(m => {
+                    const ht1 = [...m.t1].sort().join(',');
+                    const ht2 = [...m.t2].sort().join(',');
+                    if ((t1 === ht1 && t2 === ht2) || (t1 === ht2 && t2 === ht1)) {
+                        count++;
+                    }
+                });
+                return count + 1;
+            }
+            
+            // ⑦男女バランス：指定されたスコア（低い方が優先）
             if (criterion === 'gender') {
+                if (genderMode === 'none') return 0;
+
                 const t1Males = config.t1.filter(p => p.gender === "M").length;
                 const t2Males = config.t2.filter(p => p.gender === "M").length;
                 
+                const isM1F1_vs_M1F1 = t1Males === 1 && t2Males === 1;
+                const isM2F0_vs_M2F0 = t1Males === 2 && t2Males === 2;
+                const isM0F2_vs_M0F2 = t1Males === 0 && t2Males === 0;
+                const isM2F0_vs_M1F1 = (t1Males === 2 && t2Males === 1) || (t1Males === 1 && t2Males === 2);
+                const isM0F2_vs_M1F1 = (t1Males === 0 && t2Males === 1) || (t1Males === 1 && t2Males === 0);
+                const isM2F0_vs_M0F2 = (t1Males === 2 && t2Males === 0) || (t1Males === 0 && t2Males === 2);
+
+                let score = 0;
+
                 if (genderMode === 'mix') {
-                    if (t1Males === 1 && t2Males === 1) return 0;
-                    return 10;
+                    if (isM1F1_vs_M1F1) score = 0;
+                    else if (isM2F0_vs_M1F1) score = 20;
+                    else if (isM0F2_vs_M1F1) score = 20;
+                    else if (isM2F0_vs_M2F0) score = 20;
+                    else if (isM0F2_vs_M0F2) score = 20;
+                    else if (isM2F0_vs_M0F2) score = 20;
+                } else if (genderMode === 'balance') {
+                    if (isM1F1_vs_M1F1) score = 0;
+                    else if (isM2F0_vs_M1F1) score = 20;
+                    else if (isM0F2_vs_M1F1) score = 20;
+                    else if (isM2F0_vs_M2F0) score = 0;
+                    else if (isM0F2_vs_M0F2) score = 0;
+                    else if (isM2F0_vs_M0F2) score = 20;
+                } else if (genderMode === 'consider') {
+                    if (isM1F1_vs_M1F1) score = 0;
+                    else if (isM2F0_vs_M1F1) score = 10;
+                    else if (isM0F2_vs_M1F1) score = 10;
+                    else if (isM2F0_vs_M2F0) score = 0;
+                    else if (isM0F2_vs_M0F2) score = 0;
+                    else if (isM2F0_vs_M0F2) score = 20;
                 }
-                if (genderMode === 'balance') {
-                    if ((t1Males === 2 && t2Males === 2) || (t1Males === 0 && t2Males === 0) || (t1Males === 1 && t2Males === 1)) return 0;
-                    return 10;
-                }
-                if (genderMode === 'consider') {
-                    if ((t1Males === 2 && t2Males === 0) || (t1Males === 0 && t2Males === 2)) return 10;
-                    return 0;
-                }
-                if (genderMode === 'none') {
-                    return 0;
-                }
-                return 0;
+                
+                return score;
             }
             return 0;
         };
@@ -220,6 +275,7 @@
             const N = presentMembers.length;
             const configurations = [];
 
+            // すべての組み合わせを生成
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     for (let k = j + 1; k < N; k++) {
@@ -239,6 +295,7 @@
 
             let candidates = [...configurations];
 
+            // 優先順位の順に候補を最小点数で絞り込む
             for (const criterion of priorityOrder) {
                 const scores = candidates.map(config => calculatePenalty(config, criterion, history, genderMode, presentMembers));
                 const minScore = Math.min(...scores);
@@ -247,6 +304,7 @@
                 if (candidates.length === 1) break;
             }
 
+            // 最終的に複数残った場合はランダムに1つを選択
             const chosen = candidates[Math.floor(Math.random() * candidates.length)];
             const chosenCourtIds = new Set(chosen.players.map(p => p.id));
             const chosenAbsentees = presentMembers.filter(m => !chosenCourtIds.has(m.id));
@@ -763,7 +821,7 @@
                                                     </label>
                                                     <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
                                                         <input type="radio" checked={genderMode === 'none'} onChange={() => setGenderMode('none')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女バランスを考慮しない</span>
+                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮なし</span>
                                                     </label>
                                                 </div>
                                             </div>
@@ -890,6 +948,7 @@
                         )}
                     </main>
 
+                    {}
                     {showImageModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative animate-in fade-in zoom-in duration-200">
