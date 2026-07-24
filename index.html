@@ -580,7 +580,7 @@
                 const bgColor = player.isMale ? 'bg-sky-50 text-sky-700 border-sky-100' : 'bg-rose-50 text-rose-700 border-rose-100';
                 
                 return (
-                    <div className={`w-[48%] flex items-center justify-center font-bold h-8 rounded border ${bgColor} ${textSize} px-0.5 capture-safe-text`}>
+                    <div className={`w-[48%] flex items-center justify-center font-bold h-6 rounded border ${bgColor} ${textSize} px-0.5 capture-safe-text`}>
                         <span className="whitespace-nowrap truncate">{player.name}</span>
                     </div>
                 );
@@ -878,8 +878,8 @@
                                             const absNames = m.absentees.map(id => getMemberName(id));
 
                                             return (
-                                                <div key={m.id} className="border-b border-slate-200 py-2.5 flex flex-col justify-center">
-                                                    <div className="flex items-center mb-1.5 w-full">
+                                                <div key={m.id} className="border-b border-slate-200 py-2 flex flex-col justify-center">
+                                                    <div className="flex items-center mb-1 w-full">
                                                         <span className="text-xs font-extrabold text-slate-700 w-16 shrink-0 capture-safe-text">
                                                             第{matchNum}試合
                                                         </span>
