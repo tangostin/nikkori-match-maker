@@ -309,6 +309,7 @@
             const [showImageModal, setShowImageModal] = useState(false);
 
             const bottomRef = useRef(null);
+            const settingsRef = useRef(null);
             const prevMembersLength = useRef(members.length);
 
             const presentCount = members.filter(m => m.present).length;
@@ -338,6 +339,16 @@
             const triggerToast = (msg) => {
                 setToast({ show: true, message: msg });
                 setTimeout(() => setToast({ show: false, message: "" }), 2500);
+            };
+
+            const handleToggleSettings = () => {
+                const nextState = !showSettings;
+                setShowSettings(nextState);
+                if (nextState) {
+                    setTimeout(() => {
+                        settingsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 50);
+                }
             };
 
             const handleGoHome = () => {
@@ -820,11 +831,11 @@
                                     </div>
                                 </div>
 
-                                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm">
+                                <div ref={settingsRef} className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm scroll-mt-[55px]">
                                     <div className="flex items-center justify-between">
                                         <button
                                             type="button"
-                                            onClick={() => setShowSettings(!showSettings)}
+                                            onClick={handleToggleSettings}
                                             className="flex items-center text-sm font-bold text-slate-600 focus:outline-none whitespace-nowrap py-0.5"
                                         >
                                             <SettingsIcon className="w-4 h-4 mr-1 shrink-0" />
@@ -998,7 +1009,7 @@
                         )}
                     </main>
 
-                    {/* Footer */}
+                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
