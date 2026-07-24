@@ -765,18 +765,17 @@
                                 </div>
 
                                 {/* 詳細設定カード */}
-                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm relative">
+                                <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm">
+                                    <div className="flex items-center justify-between">
                                     <button
                                         type="button"
                                         onClick={() => setShowSettings(!showSettings)}
-                                        className="flex items-center text-xm font-bold text-slate-600 focus:outline-none whitespace-nowrap py-0.5"
+                                        className="flex items-center text-xs font-bold text-slate-600 focus:outline-none whitespace-nowrap py-1"
                                     >
                                         <SettingsIcon className="w-4 h-4 mr-1 shrink-0" />
                                         <span className="whitespace-nowrap">詳細設定</span>
                                         <span className={`ml-1 transform transition-transform ${showSettings ? 'rotate-180' : ''}`}>▼</span>
                                     </button>
-                                    
-                                    <div className="absolute top-2.5 right-3">
                                         <button
                                             type="button"
                                             onClick={handleSaveGroup}
