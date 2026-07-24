@@ -61,6 +61,7 @@
         };
 
         const DEFAULT_PRIORITY = ['count', 'break', 'consecutive', 'pair', 'opponent', 'card', 'gender'];
+        const DEFAULT_GENDER_MODE = 'consider';
 
         const ensurePriorityList = (pList) => {
             if (!Array.isArray(pList)) return DEFAULT_PRIORITY;
@@ -73,7 +74,7 @@
 
         const normalizeGenderMode = (mode) => {
             if (['mix', 'balance', 'consider', 'none'].includes(mode)) return mode;
-            return 'none';
+            return DEFAULT_GENDER_MODE;
         };
 
         const getStats = (playerId, history) => {
@@ -296,7 +297,8 @@
             const [members, setMembers] = useState([]);
             
             const [priorityOrder, setPriorityOrder] = useState(DEFAULT_PRIORITY);
-            const [genderMode, setGenderMode] = useState('none');
+            const [genderMode, setGenderMode] = useState(DEFAULT_GENDER_MODE);
+            const [isGenderExpanded, setIsGenderExpanded] = useState(false);
             
             const [showSettings, setShowSettings] = useState(false);
             const [deleteConfirmId, setDeleteConfirmId] = useState(null);
@@ -368,7 +370,7 @@
                     id: newId,
                     name: "",
                     members: [],
-                    settings: { priority: DEFAULT_PRIORITY, genderMode: 'none' }
+                    settings: { priority: DEFAULT_PRIORITY, genderMode: DEFAULT_GENDER_MODE }
                 };
                 const updated = [...groups, newGroup];
                 setGroups(updated);
@@ -380,6 +382,7 @@
                 setMatchList([]);
                 setPriorityOrder(newGroup.settings.priority);
                 setGenderMode(normalizeGenderMode(newGroup.settings.genderMode));
+                setIsGenderExpanded(false);
                 setShowSettings(false);
                 setDeleteConfirmId(null);
                 setPage('group');
@@ -394,6 +397,7 @@
                 setMatchList([]);
                 setPriorityOrder(ensurePriorityList(target.settings?.priority));
                 setGenderMode(normalizeGenderMode(target.settings?.genderMode));
+                setIsGenderExpanded(false);
                 setShowSettings(false);
                 setDeleteConfirmId(null);
                 setPage('group');
@@ -585,6 +589,16 @@
                 const m = members.find(p => p.id === id);
                 if (!m) return { name: "??", isMale: true };
                 return { name: m.name, isMale: m.gender === "M" };
+            };
+
+            const getGenderBadgeText = (mode) => {
+                switch (mode) {
+                    case 'mix': return 'ミックス';
+                    case 'balance': return '均等';
+                    case 'consider': return '考慮あり';
+                    case 'none': return '考慮なし';
+                    default: return '考慮あり';
+                }
             };
 
             const NameSpan = ({ player }) => {
@@ -829,6 +843,7 @@
                                     </div>
                                 </div>
 
+                                {}
                                 <div ref={settingsRef} className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm scroll-mt-[55px]">
                                     <div className="flex items-center justify-between">
                                         <button
@@ -856,7 +871,10 @@
                                                     <h3 className="text-xs font-bold text-slate-700">組み合わせの優先順位</h3>
                                                     <button 
                                                         type="button"
-                                                        onClick={() => setPriorityOrder(DEFAULT_PRIORITY)} 
+                                                        onClick={() => {
+                                                            setPriorityOrder(DEFAULT_PRIORITY);
+                                                            setGenderMode(DEFAULT_GENDER_MODE);
+                                                        }} 
                                                         className="text-[10px] text-emerald-600 font-bold underline"
                                                     >
                                                         初期設定に戻す
@@ -864,63 +882,112 @@
                                                 </div>
 
                                                 <div className="space-y-1.5">
-                                                    {priorityOrder.map((key, index) => (
-                                                        <div key={key} className="flex items-center space-x-2">
-                                                            {/* 左の順位番号マーク */}
-                                                            <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
-                                                                {index + 1}
-                                                            </div>
+                                                    {priorityOrder.map((key, index) => {
+                                                        const isGenderItem = key === 'gender';
 
-                                                            {/* 項目名のグレー角丸カード */}
-                                                            <div className="flex-1 py-1.5 px-3 bg-slate-50 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm">
-                                                                {PRIORITY_LABELS[key]}
-                                                            </div>
+                                                        return (
+                                                            <div key={key} className="flex items-center space-x-2">
+                                                                {/* 左の順位番号マーク（真円） */}
+                                                                <div className="w-6 h-6 my-0.5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                                                                    {index + 1}
+                                                                </div>
 
-                                                            {/* 右の昇降ボタン（カード外） */}
-                                                            <div className="flex space-x-1 shrink-0">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => movePriority(index, -1)}
-                                                                    disabled={index === 0}
-                                                                    className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
-                                                                    title="上に移動"
-                                                                >
-                                                                    ▲
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => movePriority(index, 1)}
-                                                                    disabled={index === priorityOrder.length - 1}
-                                                                    className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
-                                                                    title="下に移動"
-                                                                >
-                                                                    ▼
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
+                                                                {/* 項目名の角丸カード（男女バランスの場合はタップで展開） */}
+                                                                <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm overflow-hidden">
+                                                                    {isGenderItem ? (
+                                                                        <div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => setIsGenderExpanded(!isGenderExpanded)}
+                                                                                className="w-full py-1.5 px-3 flex items-center justify-between text-left focus:outline-none hover:bg-slate-100/60 transition-colors"
+                                                                            >
+                                                                                <span className="font-bold text-slate-700">{PRIORITY_LABELS[key]}</span>
+                                                                                <div className="flex items-center space-x-1.5">
+                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+                                                                                        {getGenderBadgeText(genderMode)}
+                                                                                    </span>
+                                                                                    <span className="text-slate-400 text-xs font-bold">
+                                                                                        {isGenderExpanded ? '－' : '＋'}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </button>
 
-                                            <div className="space-y-2 pt-2 border-t border-slate-100">
-                                                <h3 className="text-xs font-bold text-slate-700 mb-2">男女バランス設定</h3>
-                                                <div className="space-y-1">
-                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'mix'} onChange={() => setGenderMode('mix')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">ミックスダブルス</span>
-                                                    </label>
-                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'balance'} onChange={() => setGenderMode('balance')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女バランス均等</span>
-                                                    </label>
-                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'consider'} onChange={() => setGenderMode('consider')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮</span>
-                                                    </label>
-                                                    <label className="flex items-center space-x-2 py-1 px-2 hover:bg-slate-50 rounded cursor-pointer">
-                                                        <input type="radio" checked={genderMode === 'none'} onChange={() => setGenderMode('none')} className="accent-emerald-500" />
-                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮なし</span>
-                                                    </label>
+                                                                            {isGenderExpanded && (
+                                                                                <div className="px-3 pb-2.5 pt-1 border-t border-slate-200/60 bg-white/70 space-y-1 font-normal">
+                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
+                                                                                        <input 
+                                                                                            type="radio" 
+                                                                                            name="accordionGenderMode"
+                                                                                            checked={genderMode === 'mix'} 
+                                                                                            onChange={() => setGenderMode('mix')} 
+                                                                                            className="accent-emerald-500" 
+                                                                                        />
+                                                                                        <span className="text-xs font-bold text-slate-600">ミックスダブルス</span>
+                                                                                    </label>
+                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
+                                                                                        <input 
+                                                                                            type="radio" 
+                                                                                            name="accordionGenderMode"
+                                                                                            checked={genderMode === 'balance'} 
+                                                                                            onChange={() => setGenderMode('balance')} 
+                                                                                            className="accent-emerald-500" 
+                                                                                        />
+                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス均等</span>
+                                                                                    </label>
+                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
+                                                                                        <input 
+                                                                                            type="radio" 
+                                                                                            name="accordionGenderMode"
+                                                                                            checked={genderMode === 'consider'} 
+                                                                                            onChange={() => setGenderMode('consider')} 
+                                                                                            className="accent-emerald-500" 
+                                                                                        />
+                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮あり</span>
+                                                                                    </label>
+                                                                                    <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
+                                                                                        <input 
+                                                                                            type="radio" 
+                                                                                            name="accordionGenderMode"
+                                                                                            checked={genderMode === 'none'} 
+                                                                                            onChange={() => setGenderMode('none')} 
+                                                                                            className="accent-emerald-500" 
+                                                                                        />
+                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮なし</span>
+                                                                                    </label>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="py-1.5 px-3">
+                                                                            {PRIORITY_LABELS[key]}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* 右の昇降ボタン（カード外） */}
+                                                                <div className="flex space-x-1 shrink-0 h-7 items-center">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => movePriority(index, -1)}
+                                                                        disabled={index === 0}
+                                                                        className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
+                                                                        title="上に移動"
+                                                                    >
+                                                                        ▲
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => movePriority(index, 1)}
+                                                                        disabled={index === priorityOrder.length - 1}
+                                                                        className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
+                                                                        title="下に移動"
+                                                                    >
+                                                                        ▼
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </div>
@@ -941,6 +1008,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 
@@ -1030,6 +1098,7 @@
                         )}
                     </main>
 
+                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
