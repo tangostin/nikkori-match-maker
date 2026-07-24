@@ -595,9 +595,9 @@
                 switch (mode) {
                     case 'mix': return 'ミックス';
                     case 'balance': return '均等';
-                    case 'consider': return '考慮あり';
+                    case 'consider': return 'やや考慮';
                     case 'none': return '考慮なし';
-                    default: return '考慮あり';
+                    default: return 'やや考慮';
                 }
             };
 
@@ -620,14 +620,14 @@
             return (
                 <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[48px]">
                     
-                    {/* Header Banner Area */}
-                    <header className="fixed top-0 left-0 right-0 z-40 bg-emerald-600 text-white h-[50px] flex items-center justify-center shadow-md">
-                        <span className="bg-emerald-700/90 text-emerald-100 px-3 py-0.5 rounded text-[11px] font-bold tracking-widest uppercase border border-emerald-400/40 shadow-inner">
+                    {}
+                    <header className="fixed top-0 left-0 right-0 z-40 bg-[#FFDD00] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
+                        <span className=" text-sm tracking-widest uppercase text-slate-800">
                             AD
                         </span>
                     </header>
 
-                    {/* Main Content Area */}
+                    {}
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4">
                         {page === 'top' && (
                             <div className="space-y-6">
@@ -728,6 +728,7 @@
                             </div>
                         )}
 
+                        {}
                         {page === 'group' && (
                             <div className="space-y-3">
                                 {/* グループ名枠 */}
@@ -776,7 +777,7 @@
 
                                 <div className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm space-y-0.5">
                                     <div className="flex items-center space-x-1.5 px-1 pt-0.5 pb-0.5 text-[11px] font-bold text-slate-500">
-                                        <div className="w-12 text-center text-emerald-600 font-extrabold shrink-0">
+                                        <div className="w-14 text-center text-emerald-600 font-extrabold shrink-0">
                                             参加 {presentCount}名
                                         </div>
                                         <div className="flex-1 text-left pl-1 text-slate-400 font-normal truncate">
@@ -791,7 +792,7 @@
                                                 <button
                                                     type="button"
                                                     onClick={() => toggleMemberPresence(index)}
-                                                    className={`w-12 py-1 text-[10px] font-bold rounded shadow-sm transition-all shrink-0 ${
+                                                    className={`w-14 py-1 text-xs font-bold rounded shadow-sm transition-all shrink-0 ${
                                                         m.present 
                                                         ? 'bg-emerald-500 text-white' 
                                                         : 'bg-slate-200 text-slate-500'
@@ -812,7 +813,7 @@
                                                     <button
                                                         type="button"
                                                         onClick={() => toggleMemberGender(index, 'M')}
-                                                        className={`w-7 py-1 text-[10px] font-bold rounded transition-all ${
+                                                        className={`w-8 py-1 text-xs font-bold rounded transition-all ${
                                                             m.gender === 'M'
                                                             ? 'bg-sky-500 text-white shadow-sm'
                                                             : 'bg-white text-slate-400 border border-slate-200'
@@ -823,7 +824,7 @@
                                                     <button
                                                         type="button"
                                                         onClick={() => toggleMemberGender(index, 'F')}
-                                                        className={`w-7 py-1 text-[10px] font-bold rounded transition-all ${
+                                                        className={`w-8 py-1 text-xs font-bold rounded transition-all ${
                                                             m.gender === 'F'
                                                             ? 'bg-rose-500 text-white shadow-sm'
                                                             : 'bg-white text-slate-400 border border-slate-200'
@@ -875,7 +876,7 @@
                                                             setPriorityOrder(DEFAULT_PRIORITY);
                                                             setGenderMode(DEFAULT_GENDER_MODE);
                                                         }} 
-                                                        className="text-[10px] text-emerald-600 font-bold underline"
+                                                        className="text-xs text-emerald-600 font-bold underline"
                                                     >
                                                         初期設定に戻す
                                                     </button>
@@ -888,12 +889,12 @@
                                                         return (
                                                             <div key={key} className="flex items-center space-x-2">
                                                                 {/* 左の順位番号マーク（真円） */}
-                                                                <div className="w-6 h-6 my-0.5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                                                                <div className="w-6 h-6 my-0.5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-xs flex items-center justify-center shrink-0">
                                                                     {index + 1}
                                                                 </div>
 
                                                                 {/* 項目名の角丸カード（男女バランスの場合はタップで展開） */}
-                                                                <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm overflow-hidden">
+                                                                <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden">
                                                                     {isGenderItem ? (
                                                                         <div>
                                                                             <button
@@ -903,10 +904,10 @@
                                                                             >
                                                                                 <span className="font-bold text-slate-700">{PRIORITY_LABELS[key]}</span>
                                                                                 <div className="flex items-center space-x-1.5">
-                                                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
                                                                                         {getGenderBadgeText(genderMode)}
                                                                                     </span>
-                                                                                    <span className="text-slate-400 text-xs font-bold">
+                                                                                    <span className="text-slate-700 text-base font-extrabold">
                                                                                         {isGenderExpanded ? '－' : '＋'}
                                                                                     </span>
                                                                                 </div>
@@ -922,7 +923,7 @@
                                                                                             onChange={() => setGenderMode('mix')} 
                                                                                             className="accent-emerald-500" 
                                                                                         />
-                                                                                        <span className="text-xs font-bold text-slate-600">ミックスダブルス</span>
+                                                                                        <span className="text-sm font-bold text-slate-600">ミックスダブルス</span>
                                                                                     </label>
                                                                                     <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
                                                                                         <input 
@@ -932,7 +933,7 @@
                                                                                             onChange={() => setGenderMode('balance')} 
                                                                                             className="accent-emerald-500" 
                                                                                         />
-                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス均等</span>
+                                                                                        <span className="text-sm font-bold text-slate-600">男女バランス均等</span>
                                                                                     </label>
                                                                                     <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
                                                                                         <input 
@@ -942,7 +943,7 @@
                                                                                             onChange={() => setGenderMode('consider')} 
                                                                                             className="accent-emerald-500" 
                                                                                         />
-                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮あり</span>
+                                                                                        <span className="text-sm font-bold text-slate-600">男女バランスやや考慮</span>
                                                                                     </label>
                                                                                     <label className="flex items-center space-x-2 py-0.5 cursor-pointer">
                                                                                         <input 
@@ -952,7 +953,7 @@
                                                                                             onChange={() => setGenderMode('none')} 
                                                                                             className="accent-emerald-500" 
                                                                                         />
-                                                                                        <span className="text-xs font-bold text-slate-600">男女バランス考慮なし</span>
+                                                                                        <span className="text-sm font-bold text-slate-600">男女バランス考慮なし</span>
                                                                                     </label>
                                                                                 </div>
                                                                             )}
@@ -1106,7 +1107,7 @@
                                     <button
                                         type="button"
                                         onClick={handleGoHome}
-                                        className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
                                     >
                                         ❮ HOME
                                     </button>
@@ -1115,7 +1116,7 @@
                                     <button
                                         type="button"
                                         onClick={handleBackToGroup}
-                                        className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
                                     >
                                         ❮ 設定
                                     </button>
@@ -1137,7 +1138,7 @@
                                                 handleCreateMatchTable();
                                             }
                                         }}
-                                        className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-emerald-600 hover:text-emerald-800 transition-colors"
                                     >
                                         対戦表 ❯
                                     </button>
@@ -1197,7 +1198,7 @@
 
             return (
                 <div className="flex items-center space-x-1.5 p-1">
-                    <div className="w-12 shrink-0"></div>
+                    <div className="w-14 shrink-0"></div>
                     
                     <input
                         type="text"
@@ -1212,14 +1213,14 @@
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('M')}
-                            className="w-7 py-1 text-[10px] font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
+                            className="w-8 py-1 text-xs font-bold rounded border border-sky-200 text-sky-500 hover:bg-sky-50 transition-all bg-white"
                         >
                             男
                         </button>
                         <button
                             type="button"
                             onClick={() => handleTriggerAdd('F')}
-                            className="w-7 py-1 text-[10px] font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
+                            className="w-8 py-1 text-xs font-bold rounded border border-rose-200 text-rose-500 hover:bg-rose-50 transition-all bg-white"
                         >
                             女
                         </button>
