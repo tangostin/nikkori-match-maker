@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>にっこり対戦表メーカー</title>
+    <title>にっこりAI対戦表メーカー</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM CDN -->
@@ -605,8 +605,8 @@
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
-                                    <h2 className="text-xl font-black mb-1">にっこり対戦表メーカー</h2>
-                                    <p className="text-emerald-50 text-xs">簡単な操作でダブルスの最適な対戦表を作成</p>
+                                    <h2 className="text-xl font-black mb-1">にっこりAI対戦表メーカー</h2>
+                                    <p className="text-emerald-50 text-xs">簡単な操作でAIがダブルスの最適な対戦表を作成</p>
                                 </div>
 
                                 <div className="space-y-3">
@@ -671,7 +671,7 @@
                                             onClick={handleCreateNewGroup}
                                             className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
-                                            <PlusIcon /> 新規グループを作成する
+                                            新規グループを作成する
                                         </button>
                                     </div>
                                 </div>
@@ -846,7 +846,7 @@
                                         onClick={handleCreateMatchTable}
                                         className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                     >
-                                        対戦表を作成する ❯
+                                        対戦表を作成する
                                     </button>
                                 </div>
 
@@ -938,7 +938,7 @@
                                             onClick={handleCopyImage}
                                             className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm text-center flex items-center justify-center transition-all active:scale-[0.98]"
                                         >
-                                            <CopyIcon /> 対戦表を画像でコピー
+                                            対戦表を画像でコピーする
                                         </button>
                                     </div>
                                 </div>
@@ -947,14 +947,14 @@
                     </main>
 
                     {/* 固定スリム操作バー（テキスト形式のナビゲーション） */}
-                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-3 shadow-lg">
-                        <div className="max-w-md w-full mx-auto flex items-center justify-between">
+                    <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
+                        <div className="max-w-md w-full mx-auto flex items-center justify-between -translate-y-2 px-4">
                             <div className="w-28 flex justify-start">
                                 {page === 'group' && (
                                     <button
                                         type="button"
                                         onClick={handleGoHome}
-                                        className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-slate-600 hover:text-slate-900 transition-colors"
                                     >
                                         ❮ HOME
                                     </button>
@@ -963,7 +963,7 @@
                                     <button
                                         type="button"
                                         onClick={handleBackToGroup}
-                                        className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-slate-600 hover:text-slate-900 transition-colors"
                                     >
                                         ❮ 設定
                                     </button>
@@ -971,7 +971,7 @@
                             </div>
 
                             <div className="text-[11px] font-bold text-slate-500 truncate px-1 text-center flex-1">
-                                😊 にっこり対戦表メーカー
+                                😊 にっこりAI対戦表メーカー
                             </div>
 
                             <div className="w-28 flex justify-end">
@@ -985,7 +985,7 @@
                                                 handleCreateMatchTable();
                                             }
                                         }}
-                                        className="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                        className="text-base font-bold text-slate-600 hover:text-slate-900 transition-colors"
                                     >
                                         対戦表 ❯
                                     </button>
