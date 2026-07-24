@@ -615,7 +615,6 @@
 
                     {/* Main Content Area */}
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4">
-                        {}
                         {page === 'top' && (
                             <div className="space-y-6">
                                 <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-md text-center">
@@ -715,10 +714,9 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3">
-                                {/* グループ名枠（メンバー数表記を名前に下配置＆右端にゴミ箱配置） */}
+                                {/* グループ名枠 */}
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -864,16 +862,40 @@
                                                         初期設定に戻す
                                                     </button>
                                                 </div>
-                                                <div className="space-y-1">
+
+                                                <div className="space-y-1.5">
                                                     {priorityOrder.map((key, index) => (
-                                                        <div key={key} className="flex items-center justify-between py-1.5 px-2 bg-slate-50 rounded border border-slate-100">
-                                                            <span className="text-xs font-bold text-slate-600">
-                                                                <span className="text-slate-400 w-4 inline-block">{index + 1}.</span> 
+                                                        <div key={key} className="flex items-center space-x-2">
+                                                            {/* 左の順位番号マーク */}
+                                                            <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-[11px] flex items-center justify-center shrink-0">
+                                                                {index + 1}
+                                                            </div>
+
+                                                            {/* 項目名のグレー角丸カード */}
+                                                            <div className="flex-1 py-1.5 px-3 bg-slate-50 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 shadow-sm">
                                                                 {PRIORITY_LABELS[key]}
-                                                            </span>
-                                                            <div className="flex space-x-1">
-                                                                <button type="button" onClick={() => movePriority(index, -1)} disabled={index === 0} className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 disabled:opacity-30">▲</button>
-                                                                <button type="button" onClick={() => movePriority(index, 1)} disabled={index === priorityOrder.length - 1} className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded text-slate-500 disabled:opacity-30">▼</button>
+                                                            </div>
+
+                                                            {/* 右の昇降ボタン（カード外） */}
+                                                            <div className="flex space-x-1 shrink-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => movePriority(index, -1)}
+                                                                    disabled={index === 0}
+                                                                    className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
+                                                                    title="上に移動"
+                                                                >
+                                                                    ▲
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => movePriority(index, 1)}
+                                                                    disabled={index === priorityOrder.length - 1}
+                                                                    className="w-6 h-6 flex items-center justify-center bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-500 hover:text-emerald-600 active:scale-95 disabled:opacity-30 transition-all shadow-sm"
+                                                                    title="下に移動"
+                                                                >
+                                                                    ▼
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -919,7 +941,6 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
                                 
@@ -1009,7 +1030,6 @@
                         )}
                     </main>
 
-                    {}
                     <footer className="fixed bottom-0 left-0 right-0 z-40 bg-slate-100 border-t border-slate-200 h-[48px] flex items-center px-6 shadow-lg">
                         <div className="max-w-md w-full mx-auto flex items-center justify-between px-2 -translate-y-2">
                             <div className="w-16 flex justify-start">
