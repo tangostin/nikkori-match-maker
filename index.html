@@ -620,14 +620,12 @@
             return (
                 <div className="flex-grow flex flex-col justify-between pt-[50px] pb-[48px]">
                     
-                    {}
                     <header className="fixed top-0 left-0 right-0 z-40 bg-[#FFDD00] text-slate-800 h-[50px] flex items-center justify-center shadow-md">
                         <span className=" text-sm tracking-widest uppercase text-slate-800">
                             AD
                         </span>
                     </header>
 
-                    {}
                     <main className="flex-grow max-w-md w-full mx-auto px-4 py-4">
                         {page === 'top' && (
                             <div className="space-y-6">
@@ -644,7 +642,6 @@
                                     ) : (
                                         groups.map((g, index) => (
                                             <div key={g.id} className="flex items-center space-x-1.5">
-                                                {/* 上下並び替えボタン */}
                                                 <div className="flex flex-col space-y-4 shrink-0">
                                                     <button
                                                         type="button"
@@ -666,7 +663,6 @@
                                                     </button>
                                                 </div>
 
-                                                {/* グループ選択ボタン */}
                                                 <button
                                                     type="button"
                                                     onClick={() => handleSelectGroup(g.id)}
@@ -683,7 +679,6 @@
                                                     <span className="text-slate-400 font-bold ml-1.5 text-sm group-hover:text-emerald-600 shrink-0">❯</span>
                                                 </button>
 
-                                                {/* 削除ボタンエリア */}
                                                 {deleteConfirmId === g.id ? (
                                                     <div className="flex items-center space-x-1 shrink-0 bg-rose-50 p-1 rounded-xl border border-rose-100">
                                                         <button 
@@ -728,10 +723,8 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'group' && (
                             <div className="space-y-3">
-                                {/* グループ名枠 */}
                                 <div className="bg-white rounded-2xl p-3 py-1.5 border border-slate-100 shadow-sm flex items-center justify-between">
                                     <div className="flex-grow min-w-0 mr-2">
                                         <input
@@ -844,7 +837,6 @@
                                     </div>
                                 </div>
 
-                                {}
                                 <div ref={settingsRef} className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm scroll-mt-[55px]">
                                     <div className="flex items-center justify-between">
                                         <button
@@ -888,12 +880,10 @@
 
                                                         return (
                                                             <div key={key} className="flex items-center space-x-2">
-                                                                {/* 左の順位番号マーク（真円） */}
                                                                 <div className="w-6 h-6 my-0.5 rounded-full bg-slate-200 text-slate-600 font-extrabold text-xs flex items-center justify-center shrink-0">
                                                                     {index + 1}
                                                                 </div>
 
-                                                                {/* 項目名の角丸カード（男女バランスの場合はタップで展開） */}
                                                                 <div className="flex-1 bg-slate-50 rounded-lg border border-slate-200 text-sm font-bold text-slate-700 shadow-sm overflow-hidden">
                                                                     {isGenderItem ? (
                                                                         <div>
@@ -965,7 +955,6 @@
                                                                     )}
                                                                 </div>
 
-                                                                {/* 右の昇降ボタン（カード外） */}
                                                                 <div className="flex space-x-1 shrink-0 h-7 items-center">
                                                                     <button
                                                                         type="button"
@@ -1009,10 +998,8 @@
                             </div>
                         )}
 
-                        {}
                         {page === 'match' && (
                             <div className="space-y-3">
-                                
                                 <div id="match-table-capture-area" className="bg-white px-3 py-3 border border-slate-200 rounded-xl shadow-sm">
                                     <div className="flex justify-between items-end border-b-2 border-slate-800 pb-1 mb-1">
                                         <h2 className="font-bold text-base leading-[1.3] text-slate-800 truncate pr-2 capture-safe-text">
@@ -1147,7 +1134,6 @@
                         </div>
                     </footer>
 
-                    {/* Image Preview Modal */}
                     {showImageModal && (
                         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                             <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl relative">
@@ -1177,7 +1163,6 @@
                         </div>
                     )}
 
-                    {/* Toast Notification */}
                     {toast.show && (
                         <div className="fixed bottom-14 left-1/2 transform -translate-x-1/2 z-50 bg-slate-800 text-white font-bold text-xs py-2 px-5 rounded-full shadow-lg whitespace-nowrap">
                             {toast.message}
